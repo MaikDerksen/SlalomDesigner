@@ -1,0 +1,54 @@
+import { useState } from "react";
+import { useStore } from "../store";
+import { exportAndShare } from "../export";
+
+export function Toolbar() {
+  const setDialog = useStore((s) => s.setDialog);
+  const clearTrack = useStore((s) => s.clearTrack);
+  const undo = useStore((s) => s.undo);
+  const undoStack = useStore((s) => s.undoStack);
+  const currentTrackName = useStore((s) => s.currentTrackName);
+  const map = useStore((s) => s.map);
+  const obstacles = useStore((s) => s.obstacles);
+  const rules = useStore((s) => s.rules);
+  const showToast = useStore((s) => s.showToast);
+  const [sharing, setSharing] = useState(false);
+
+  const onShare = async () => {
+    if (!obstacles.length) {
+      showToast("Keine Hindernisse auf der Strecke");
+      return;
+    }
+    setSharing(true);
+    try {
+      const res = await exportAndShare(map, obstacles, rules, currentTrackName);
+      showToast(res === "shared" ? "Bild geteilt" : "Bild gespeichert (Download)");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  return (
+    <header className="toolbar">
+      <div className="brand">
+        <span className="brand-dot" />
+        <div>
+          <div className="brand-name">Kart Slalom Planner</div>
+          <div className="brand-track">{currentTrackName}</div>
+        </div>
+      </div>
+      <div className="toolbar-actions">
+        <button onClick={() => setDialog("generator")} className="primary">⚡ Zufall</button>
+        <button onClick={() => setDialog("save")}>💾 Speichern</button>
+        <button onClick={() => setDialog("tracks")}>📂 Strecken</button>
+        <button onClick={() => setDialog("map")}>📐 Fläche</button>
+        <button onClick={() => setDialog("settings")}>⚙ Regeln</button>
+        <button onClick={undo} disabled={!undoStack.length} title="Rückgängig (Strg+Z)">↩</button>
+        <button onClick={() => { if (confirm("Strecke wirklich leeren?")) clearTrack(); }}>🗑 Neu</button>
+        <button onClick={onShare} disabled={sharing} className="accent">
+          {sharing ? "…" : "📤 Senden"}
+        </button>
+      </div>
+    </header>
+  );
+}
