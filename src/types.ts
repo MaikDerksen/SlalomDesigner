@@ -29,6 +29,14 @@ export interface ObstacleInstance {
   pylons: Pylon[];
 }
 
+/** Hintergrundbild einer Fahrfläche (z. B. Apple-Maps-Screenshot). */
+export interface MapImage {
+  /** JPEG-DataURL (verkleinert). */
+  data: string;
+  pxWidth: number;
+  pxHeight: number;
+}
+
 /** Konfiguration der Fahrfläche (Map Designer). */
 export interface MapConfig {
   name: string;
@@ -36,6 +44,23 @@ export interface MapConfig {
   width: number;
   /** Länge/Höhe in Metern (cm-genau). */
   height: number;
+  /** Referenz auf eine gespeicherte Map (für das Hintergrundbild). */
+  mapId?: string;
+  /** Befahrbarer Bereich als Polygon (m). Ohne: gesamte Rechteckfläche. */
+  boundary?: V2[];
+  /** Sperrzonen (Hindernisse auf der Fläche), Polygone in m. */
+  blocked?: V2[][];
+}
+
+/** In der Bibliothek gespeicherte Fahrfläche. */
+export interface SavedMap {
+  id: string;
+  name: string;
+  createdAt: number;
+  config: MapConfig;
+  image?: MapImage;
+  /** Maßstab-Kalibrierung (Bild-px), damit sie beim Bearbeiten erhalten bleibt. */
+  calibration?: { a: V2; b: V2; refLen: number };
 }
 
 export interface Track {

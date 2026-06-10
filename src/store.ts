@@ -3,9 +3,11 @@ import type {
   CustomTemplate,
   GeneratorOptions,
   MapConfig,
+  MapImage,
   ObstacleInstance,
   Pylon,
   Rules,
+  SavedMap,
   Track,
 } from "./types";
 import { storage } from "./storage";
@@ -18,6 +20,8 @@ export type DialogKind =
   | "generator"
   | "settings"
   | "map"
+  | "maps"
+  | "wizard"
   | "tracks"
   | "designer"
   | "save";
@@ -25,6 +29,11 @@ export type DialogKind =
 interface AppState {
   rules: Rules;
   map: MapConfig;
+  /** Hintergrundbild der aktiven Fläche (aus der Map-Bibliothek aufgelöst). */
+  mapImage: MapImage | null;
+  maps: SavedMap[];
+  /** Map, die im Wizard bearbeitet wird (null = neue). */
+  wizardEditId: string | null;
   obstacles: ObstacleInstance[];
   selectedId: string | null;
   tracks: Track[];
@@ -40,6 +49,11 @@ interface AppState {
   setDialog: (d: DialogKind) => void;
   setRules: (r: Rules) => void;
   setMap: (m: MapConfig) => void;
+  /** Map aus dem Wizard speichern (Upsert) und aktivieren. */
+  saveMapToLibrary: (saved: SavedMap) => void;
+  activateMap: (id: string) => void;
+  deleteMap: (id: string) => void;
+  openWizard: (editId: string | null) => void;
   select: (id: string | null) => void;
   setDragTemplate: (t: AppState["dragTemplate"]) => void;
 
@@ -74,10 +88,15 @@ function persistSession(s: { obstacles: ObstacleInstance[]; currentTrackId: stri
 }
 
 const session = storage.loadSession();
+const initialMap = storage.loadMap();
+const initialMaps = storage.loadMaps();
 
 export const useStore = create<AppState>((set, get) => ({
   rules: storage.loadRules(),
-  map: storage.loadMap(),
+  map: initialMap,
+  mapImage: initialMaps.find((m) => m.id === initialMap.mapId)?.image ?? null,
+  maps: initialMaps,
+  wizardEditId: null,
   obstacles: (session?.obstacles as ObstacleInstance[]) ?? [],
   selectedId: null,
   tracks: storage.loadTracks(),
@@ -98,8 +117,38 @@ export const useStore = create<AppState>((set, get) => ({
 
   setMap: (m) => {
     storage.saveMap(m);
-    set({ map: m });
+    // Rechteck-Fläche ohne Bild: Bildreferenz entfernen
+    set({ map: m, mapImage: m.mapId ? get().mapImage : null });
   },
+
+  saveMapToLibrary: (saved) => {
+    const maps = get().maps.some((m) => m.id === saved.id)
+      ? get().maps.map((m) => (m.id === saved.id ? saved : m))
+      : [...get().maps, saved];
+    if (!storage.saveMaps(maps)) {
+      get().showToast("Speicher voll – ältere Maps löschen");
+      return;
+    }
+    storage.saveMap(saved.config);
+    set({ maps, map: saved.config, mapImage: saved.image ?? null, wizardEditId: null });
+    get().showToast(`Fläche „${saved.name}" gespeichert`);
+  },
+
+  activateMap: (id) => {
+    const saved = get().maps.find((m) => m.id === id);
+    if (!saved) return;
+    storage.saveMap(saved.config);
+    set({ map: saved.config, mapImage: saved.image ?? null, dialog: null });
+  },
+
+  deleteMap: (id) => {
+    const maps = get().maps.filter((m) => m.id !== id);
+    storage.saveMaps(maps);
+    const active = get().map.mapId === id;
+    set({ maps, ...(active ? { mapImage: null } : {}) });
+  },
+
+  openWizard: (editId) => set({ wizardEditId: editId, dialog: "wizard" }),
 
   select: (id) => set({ selectedId: id }),
   setDragTemplate: (t) => set({ dragTemplate: t }),
@@ -249,6 +298,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       obstacles: t.obstacles.map((o) => ({ ...o, pylons: o.pylons.map((p) => ({ ...p })) })),
       map: { ...t.map },
+      mapImage: get().maps.find((m) => m.id === t.map.mapId)?.image ?? null,
       currentTrackId: t.id,
       currentTrackName: t.name,
       selectedId: null,

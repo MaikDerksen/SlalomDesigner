@@ -221,6 +221,66 @@ function fmtM(v: number): string {
   return clamp(v).toLocaleString("de-DE", { maximumFractionDigits: 2 });
 }
 
+/* ---------- Map-Bibliothek ---------- */
+
+export function MapsDialog() {
+  const setDialog = useStore((s) => s.setDialog);
+  const maps = useStore((s) => s.maps);
+  const map = useStore((s) => s.map);
+  const activateMap = useStore((s) => s.activateMap);
+  const deleteMap = useStore((s) => s.deleteMap);
+  const openWizard = useStore((s) => s.openWizard);
+
+  return (
+    <Modal title="Fahrflächen" onClose={() => setDialog(null)}>
+      <div className="field-row" style={{ marginBottom: 12 }}>
+        <button className="primary" onClick={() => openWizard(null)}>
+          🛰 Aus Screenshot
+        </button>
+        <button onClick={() => setDialog("map")}>📐 Rechteck-Fläche</button>
+      </div>
+      {!maps.length && (
+        <p className="hint">
+          Noch keine Maps gespeichert. Lade einen Apple-Maps-Screenshot hoch – der Maßstab wird über
+          ein bekanntes Objekt (z. B. ein Auto) bestimmt, die Fahrfläche automatisch maskiert.
+        </p>
+      )}
+      <div className="track-list">
+        {maps.map((m) => (
+          <div key={m.id} className={`track-item ${map.mapId === m.id ? "active" : ""}`}>
+            {m.image && (
+              <img className="map-thumb" src={m.image.data} alt="" />
+            )}
+            <div className="track-info" onClick={() => activateMap(m.id)}>
+              <strong>
+                {m.name}
+                {map.mapId === m.id && <span className="badge-active"> aktiv</span>}
+              </strong>
+              <small>
+                {m.config.width.toFixed(1)} × {m.config.height.toFixed(1)} m
+                {m.config.boundary ? ` · Maske: ${m.config.boundary.length} Punkte` : ""}
+                {m.config.blocked?.length ? ` · ${m.config.blocked.length} Sperrzone(n)` : ""}
+              </small>
+            </div>
+            <button className="primary" onClick={() => activateMap(m.id)}>Wählen</button>
+            {m.image && (
+              <button className="mini-btn" onClick={() => openWizard(m.id)} title="Bearbeiten">✎</button>
+            )}
+            <button
+              className="mini-btn danger"
+              onClick={() => {
+                if (confirm(`Map „${m.name}" löschen?`)) deleteMap(m.id);
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
 /* ---------- Strecke speichern ---------- */
 
 export function SaveDialog() {

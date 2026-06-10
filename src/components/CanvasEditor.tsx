@@ -3,7 +3,7 @@ import { useStore } from "../store";
 import { bbox, closestPair, rotatePoint, worldPylons } from "../geometry";
 import { validate } from "../validation";
 import { PylonShape } from "./ObstacleGfx";
-import { canvasBridge } from "../canvasBridge";
+import { canvasBridge, safeCapture } from "../canvasBridge";
 import type { ObstacleInstance, V2 } from "../types";
 
 interface View {
@@ -21,6 +21,7 @@ type DragMode =
 
 export function CanvasEditor() {
   const map = useStore((s) => s.map);
+  const mapImage = useStore((s) => s.mapImage);
   const rules = useStore((s) => s.rules);
   const obstacles = useStore((s) => s.obstacles);
   const selectedId = useStore((s) => s.selectedId);
@@ -99,7 +100,7 @@ export function CanvasEditor() {
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+    safeCapture(e.target as Element, e.pointerId);
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     movedRef.current = false;
 
@@ -248,17 +249,63 @@ export function CanvasEditor() {
             strokeWidth={2 / view.scale}
             rx={0.3}
           />
-          {/* Sicherheits-Randabstand */}
-          <rect
-            x={rules.edgeMargin}
-            y={rules.edgeMargin}
-            width={Math.max(0, map.width - 2 * rules.edgeMargin)}
-            height={Math.max(0, map.height - 2 * rules.edgeMargin)}
-            fill="none"
-            stroke="var(--asphalt-border)"
-            strokeWidth={1 / view.scale}
-            strokeDasharray={`${6 / view.scale} ${6 / view.scale}`}
-          />
+          {/* Screenshot-Hintergrund (Map aus dem Wizard) */}
+          {mapImage && (
+            <image
+              href={mapImage.data}
+              x={0}
+              y={0}
+              width={map.width}
+              height={map.height}
+              preserveAspectRatio="none"
+              opacity={0.95}
+            />
+          )}
+          {/* Bereich außerhalb der erkannten Fahrfläche abdunkeln */}
+          {map.boundary && map.boundary.length >= 3 && (
+            <>
+              <path
+                d={`M-2 -2 H${map.width + 2} V${map.height + 2} H-2 Z M${map.boundary
+                  .map((p) => `${p.x} ${p.y}`)
+                  .join(" L")} Z`}
+                fill="rgba(22,24,29,0.42)"
+                fillRule="evenodd"
+                pointerEvents="none"
+              />
+              <polygon
+                points={map.boundary.map((p) => `${p.x},${p.y}`).join(" ")}
+                fill="none"
+                stroke="#22c55e"
+                strokeWidth={2 / view.scale}
+                pointerEvents="none"
+              />
+            </>
+          )}
+          {/* Sperrzonen */}
+          {map.blocked?.map((zone, i) => (
+            <polygon
+              key={`bz${i}`}
+              points={zone.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill="rgba(217,45,32,0.32)"
+              stroke="var(--danger)"
+              strokeWidth={1.5 / view.scale}
+              strokeDasharray={`${5 / view.scale} ${4 / view.scale}`}
+              pointerEvents="none"
+            />
+          ))}
+          {/* Sicherheits-Randabstand (nur Rechteck-Flächen) */}
+          {!map.boundary && (
+            <rect
+              x={rules.edgeMargin}
+              y={rules.edgeMargin}
+              width={Math.max(0, map.width - 2 * rules.edgeMargin)}
+              height={Math.max(0, map.height - 2 * rules.edgeMargin)}
+              fill="none"
+              stroke="var(--asphalt-border)"
+              strokeWidth={1 / view.scale}
+              strokeDasharray={`${6 / view.scale} ${6 / view.scale}`}
+            />
+          )}
           {gridLines.map((l, i) => (
             <line
               key={i}
@@ -266,9 +313,9 @@ export function CanvasEditor() {
               y1={l.y0}
               x2={l.x1}
               y2={l.y1}
-              stroke="var(--grid)"
+              stroke={mapImage ? "#ffffff" : "var(--grid)"}
               strokeWidth={(l.major ? 1.4 : 0.6) / view.scale}
-              opacity={l.major ? 0.8 : 0.5}
+              opacity={mapImage ? (l.major ? 0.35 : 0.15) : l.major ? 0.8 : 0.5}
             />
           ))}
 

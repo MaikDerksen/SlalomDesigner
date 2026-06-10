@@ -1,6 +1,7 @@
-import type { MapConfig, ObstacleInstance, Rules } from "./types";
+import type { MapConfig, MapImage, ObstacleInstance, Rules } from "./types";
 import { deg2rad } from "./geometry";
 import { validate } from "./validation";
+import { loadImage } from "./imageProc";
 
 /**
  * Rendert die Strecke als PNG (Canvas 2D) und teilt sie über die
@@ -11,8 +12,9 @@ export async function exportAndShare(
   obstacles: ObstacleInstance[],
   rules: Rules,
   trackName: string,
+  image?: MapImage | null,
 ): Promise<"shared" | "downloaded"> {
-  const blob = await renderPng(map, obstacles, rules, trackName);
+  const blob = await renderPng(map, obstacles, rules, trackName, image);
   const fileName = `${sanitize(trackName)}_${new Date().toISOString().slice(0, 10)}.png`;
   const file = new File([blob], fileName, { type: "image/png" });
 
@@ -43,6 +45,7 @@ export async function renderPng(
   obstacles: ObstacleInstance[],
   rules: Rules,
   trackName: string,
+  image?: MapImage | null,
 ): Promise<Blob> {
   // Maßstab so wählen, dass die längere Seite ~2400 px hat
   const headerH = 140;
@@ -77,20 +80,72 @@ export async function renderPng(
   // Fahrfläche
   ctx.fillStyle = "#dfe3e8";
   ctx.fillRect(ox, oy, map.width * scale, map.height * scale);
+
+  // Screenshot-Hintergrund
+  if (image) {
+    try {
+      const img = await loadImage(image.data);
+      ctx.drawImage(img, ox, oy, map.width * scale, map.height * scale);
+    } catch {
+      // ohne Bild weiterzeichnen
+    }
+  }
   ctx.strokeStyle = "#9aa3ad";
   ctx.lineWidth = 2;
   ctx.strokeRect(ox, oy, map.width * scale, map.height * scale);
 
   // Raster: 1 m fein, 5 m kräftig
+  const minor = image ? "rgba(255,255,255,0.14)" : "#d4d9df";
+  const major = image ? "rgba(255,255,255,0.32)" : "#c2c9d1";
   for (let x = 0; x <= map.width; x++) {
-    ctx.strokeStyle = x % 5 === 0 ? "#c2c9d1" : "#d4d9df";
+    ctx.strokeStyle = x % 5 === 0 ? major : minor;
     ctx.lineWidth = x % 5 === 0 ? 1.5 : 0.75;
     line(ctx, ox + x * scale, oy, ox + x * scale, oy + map.height * scale);
   }
   for (let y = 0; y <= map.height; y++) {
-    ctx.strokeStyle = y % 5 === 0 ? "#c2c9d1" : "#d4d9df";
+    ctx.strokeStyle = y % 5 === 0 ? major : minor;
     ctx.lineWidth = y % 5 === 0 ? 1.5 : 0.75;
     line(ctx, ox, oy + y * scale, ox + map.width * scale, oy + y * scale);
+  }
+
+  // Erkannte Fahrfläche: außen abdunkeln, Kontur zeichnen
+  if (map.boundary && map.boundary.length >= 3) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(ox, oy, map.width * scale, map.height * scale);
+    ctx.moveTo(ox + map.boundary[0].x * scale, oy + map.boundary[0].y * scale);
+    for (let i = map.boundary.length - 1; i >= 0; i--) {
+      ctx.lineTo(ox + map.boundary[i].x * scale, oy + map.boundary[i].y * scale);
+    }
+    ctx.closePath();
+    ctx.fillStyle = "rgba(22,24,29,0.42)";
+    ctx.fill("evenodd");
+    ctx.restore();
+    ctx.beginPath();
+    map.boundary.forEach((p, i) =>
+      i === 0 ? ctx.moveTo(ox + p.x * scale, oy + p.y * scale) : ctx.lineTo(ox + p.x * scale, oy + p.y * scale),
+    );
+    ctx.closePath();
+    ctx.strokeStyle = "#22c55e";
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
+
+  // Sperrzonen
+  for (const zone of map.blocked ?? []) {
+    if (zone.length < 3) continue;
+    ctx.beginPath();
+    zone.forEach((p, i) =>
+      i === 0 ? ctx.moveTo(ox + p.x * scale, oy + p.y * scale) : ctx.lineTo(ox + p.x * scale, oy + p.y * scale),
+    );
+    ctx.closePath();
+    ctx.fillStyle = "rgba(217,45,32,0.32)";
+    ctx.fill();
+    ctx.strokeStyle = "#d92d20";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   // Maßstabsbalken (5 m)

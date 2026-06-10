@@ -161,6 +161,65 @@ export function centerPylons(pylons: Pylon[]): Pylon[] {
   return pylons.map((p) => ({ ...p, x: round2(p.x - cx), y: round2(p.y - cy) }));
 }
 
+/* ---------- Polygon-Helfer (Fahrflächen-Maske, Sperrzonen) ---------- */
+
+export function pointInPolygon(p: V2, poly: V2[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i];
+    const b = poly[j];
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+export function distPointToSegment(p: V2, a: V2, b: V2): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return dist(p, a);
+  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+export function distToPolygonEdge(p: V2, poly: V2[]): number {
+  let best = Infinity;
+  for (let i = 0; i < poly.length; i++) {
+    const d = distPointToSegment(p, poly[i], poly[(i + 1) % poly.length]);
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+/** Ramer-Douglas-Peucker-Vereinfachung einer Polylinie/eines Polygons. */
+export function rdpSimplify(points: V2[], epsilon: number): V2[] {
+  if (points.length < 3) return points.slice();
+  const keep = new Uint8Array(points.length);
+  keep[0] = 1;
+  keep[points.length - 1] = 1;
+  const stack: [number, number][] = [[0, points.length - 1]];
+  while (stack.length) {
+    const [s, e] = stack.pop()!;
+    let maxD = 0;
+    let idx = -1;
+    for (let i = s + 1; i < e; i++) {
+      const d = distPointToSegment(points[i], points[s], points[e]);
+      if (d > maxD) {
+        maxD = d;
+        idx = i;
+      }
+    }
+    if (maxD > epsilon && idx > 0) {
+      keep[idx] = 1;
+      stack.push([s, idx], [idx, e]);
+    }
+  }
+  return points.filter((_, i) => keep[i]);
+}
+
 let idCounter = 0;
 export function uid(prefix = "id"): string {
   idCounter += 1;

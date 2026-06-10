@@ -9,6 +9,7 @@ export function Toolbar() {
   const undoStack = useStore((s) => s.undoStack);
   const currentTrackName = useStore((s) => s.currentTrackName);
   const map = useStore((s) => s.map);
+  const mapImage = useStore((s) => s.mapImage);
   const obstacles = useStore((s) => s.obstacles);
   const rules = useStore((s) => s.rules);
   const showToast = useStore((s) => s.showToast);
@@ -21,7 +22,7 @@ export function Toolbar() {
     }
     setSharing(true);
     try {
-      const res = await exportAndShare(map, obstacles, rules, currentTrackName);
+      const res = await exportAndShare(map, obstacles, rules, currentTrackName, mapImage);
       showToast(res === "shared" ? "Bild geteilt" : "Bild gespeichert (Download)");
     } finally {
       setSharing(false);
@@ -41,7 +42,7 @@ export function Toolbar() {
         <button onClick={() => setDialog("generator")} className="primary">⚡ Zufall</button>
         <button onClick={() => setDialog("save")}>💾 Speichern</button>
         <button onClick={() => setDialog("tracks")}>📂 Strecken</button>
-        <button onClick={() => setDialog("map")}>📐 Fläche</button>
+        <button onClick={() => setDialog("maps")}>📐 Fläche</button>
         <button onClick={() => setDialog("settings")}>⚙ Regeln</button>
         <button onClick={undo} disabled={!undoStack.length} title="Rückgängig (Strg+Z)">↩</button>
         <button onClick={() => { if (confirm("Strecke wirklich leeren?")) clearTrack(); }}>🗑 Neu</button>

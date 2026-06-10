@@ -1,12 +1,43 @@
-import type { MapConfig, ObstacleInstance, Rules, ValidationFlags } from "./types";
-import { bbox, minPointDist, worldPylons } from "./geometry";
+import type { MapConfig, ObstacleInstance, Rules, V2, ValidationFlags } from "./types";
+import { bbox, distToPolygonEdge, minPointDist, pointInPolygon, worldPylons } from "./geometry";
 
 /**
  * Regelprüfung nach §7.2 / §8:
  * – Abstand zwischen Aufgaben min. 4 m (zu nah → rot)
  * – Aufgabe muss innerhalb der Fahrfläche inkl. Randabstand liegen (→ rot)
+ * – Sperrzonen (markierte Hindernisse) dürfen nicht berührt werden (→ rot)
  * – Abstand > maxTaskGap zur nächsten Aufgabe → Hinweis (gelb)
  */
+
+/** Liegen alle Pylonen-Füße regelkonform auf der Fahrfläche? */
+export function boundsOk(points: V2[], map: MapConfig, rules: Rules): boolean {
+  const m = rules.edgeMargin;
+  const half = rules.pylonBase / 2;
+
+  for (const p of points) {
+    // Rechteckgrenze gilt immer (Bildrand = Ende der bekannten Fläche)
+    if (p.x - half < 0 || p.y - half < 0 || p.x + half > map.width || p.y + half > map.height)
+      return false;
+
+    if (map.boundary && map.boundary.length >= 3) {
+      if (!pointInPolygon(p, map.boundary)) return false;
+      if (distToPolygonEdge(p, map.boundary) - half < m) return false;
+    } else {
+      if (p.x - half < m || p.y - half < m || p.x + half > map.width - m || p.y + half > map.height - m)
+        return false;
+    }
+
+    if (map.blocked) {
+      for (const zone of map.blocked) {
+        if (zone.length < 3) continue;
+        if (pointInPolygon(p, zone)) return false;
+        if (distToPolygonEdge(p, zone) - half < m) return false;
+      }
+    }
+  }
+  return true;
+}
+
 export function validate(
   obstacles: ObstacleInstance[],
   map: MapConfig,
@@ -31,17 +62,9 @@ export function validate(
       if (d < nearest) nearest = d;
     }
 
-    const m = rules.edgeMargin;
-    const half = rules.pylonBase / 2;
-    const out =
-      boxes[i].minX - half < m ||
-      boxes[i].minY - half < m ||
-      boxes[i].maxX + half > map.width - m ||
-      boxes[i].maxY + half > map.height - m;
-
     result.set(obstacles[i].id, {
       tooClose: nearest < rules.minTaskGap - 1e-9,
-      outOfBounds: out,
+      outOfBounds: !boundsOk(points[i], map, rules),
       isolated: obstacles.length > 1 && nearest > rules.maxTaskGap + 1e-9,
       nearestDist: nearest,
     });

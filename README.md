@@ -12,6 +12,12 @@ Regelbasis: **Offizielles ADAC Kartslalom Reglement 2026** (§7 Parcoursaufbau, 
 - 🔴 **Regelprüfung live** – Aufgaben näher als 4 m aneinander oder außerhalb der Fläche werden rot markiert,
   isolierte Aufgaben (> 10 m) gelb; beim Ziehen wird der Abstand zur nächsten Aufgabe eingeblendet
 - 📐 **Map Designer** – Fahrfläche cm-genau konfigurieren (z. B. 62,35 × 41,20 m), 1-m-/5-m-Raster
+- 🛰 **Map aus Screenshot** – Apple-Maps-/Satelliten-Screenshot hochladen; der Maßstab wird über ein
+  bekanntes Objekt bestimmt (Auto antippen → Algorithmus vermisst es per Blob-Segmentierung + PCA,
+  oder Linie manuell ziehen), die Fahrfläche wird per Flutfüllung automatisch maskiert und als Polygon
+  mit verschiebbaren Punkten editierbar (Punkte hinzufügen/löschen). Sperrzonen für Hindernisse
+  (Laternen, Inseln …) lassen sich einzeichnen. Die Map wird unter einem Titel gespeichert; beim
+  Generieren dient der Screenshot als Hintergrund, Aufgaben landen nur in der Maske und nie in Sperrzonen
 - 🛠 **Eigene Hindernisse** – im Designer Pylonen (stehend/liegend) auf 5-cm-Raster setzen und als
   wiederverwendbares Objekt in der Palette speichern
 - ⚙ **Regeln als Variablen** – alle Reglement-Maße (Abstände, Torbreite, Pylonenmaße …) in den

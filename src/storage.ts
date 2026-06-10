@@ -1,4 +1,4 @@
-import type { CustomTemplate, MapConfig, Rules, Track } from "./types";
+import type { CustomTemplate, MapConfig, Rules, SavedMap, Track } from "./types";
 import { DEFAULT_RULES } from "./rules";
 
 /** Persistenz über localStorage (funktioniert im Web und in der Capacitor-WebView). */
@@ -8,6 +8,7 @@ const KEYS = {
   tracks: "ksp.tracks.v1",
   custom: "ksp.customTemplates.v1",
   map: "ksp.map.v1",
+  maps: "ksp.maps.v1",
   session: "ksp.session.v1",
 };
 
@@ -21,11 +22,13 @@ function load<T>(key: string, fallback: T): T {
   }
 }
 
-function save(key: string, value: unknown) {
+function save(key: string, value: unknown): boolean {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch {
-    // Speicher voll / privater Modus – still ignorieren
+    // Speicher voll / privater Modus
+    return false;
   }
 }
 
@@ -41,6 +44,9 @@ export const storage = {
 
   loadMap: (): MapConfig => load<MapConfig>(KEYS.map, { name: "Trainingsplatz", width: 60, height: 40 }),
   saveMap: (m: MapConfig) => save(KEYS.map, m),
+
+  loadMaps: (): SavedMap[] => load<SavedMap[]>(KEYS.maps, []),
+  saveMaps: (m: SavedMap[]): boolean => save(KEYS.maps, m),
 
   loadSession: () => load<{ obstacles: unknown[]; trackId: string | null; trackName: string } | null>(KEYS.session, null),
   saveSession: (s: { obstacles: unknown[]; trackId: string | null; trackName: string }) => save(KEYS.session, s),

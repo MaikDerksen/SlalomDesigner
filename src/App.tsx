@@ -3,8 +3,9 @@ import { useStore } from "./store";
 import { Toolbar } from "./components/Toolbar";
 import { CanvasEditor } from "./components/CanvasEditor";
 import { Palette } from "./components/Palette";
-import { GeneratorDialog, MapDialog, SaveDialog, SettingsDialog, TracksDialog } from "./components/Dialogs";
+import { GeneratorDialog, MapDialog, MapsDialog, SaveDialog, SettingsDialog, TracksDialog } from "./components/Dialogs";
 import { ObstacleDesigner } from "./components/ObstacleDesigner";
+import { MapWizard } from "./components/MapWizard";
 import { validate } from "./validation";
 
 export default function App() {
@@ -61,6 +62,8 @@ export default function App() {
       {dialog === "generator" && <GeneratorDialog />}
       {dialog === "settings" && <SettingsDialog />}
       {dialog === "map" && <MapDialog />}
+      {dialog === "maps" && <MapsDialog />}
+      {dialog === "wizard" && <MapWizard />}
       {dialog === "tracks" && <TracksDialog />}
       {dialog === "save" && <SaveDialog />}
       {dialog === "designer" && <ObstacleDesigner />}

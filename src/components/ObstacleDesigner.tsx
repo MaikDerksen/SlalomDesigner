@@ -3,6 +3,7 @@ import { useStore } from "../store";
 import { Modal } from "./Dialogs";
 import { PylonShape } from "./ObstacleGfx";
 import { centerPylons } from "../geometry";
+import { safeCapture } from "../canvasBridge";
 import type { Pylon } from "../types";
 
 const SIZE = 12; // bearbeitbare Fläche in Metern (12 × 12)
@@ -35,7 +36,7 @@ export function ObstacleDesigner() {
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    safeCapture(e.currentTarget as Element, e.pointerId);
     const p = toLocal(e);
     // vorhandene Pylone unter dem Zeiger?
     const idx = pylons.findIndex((q) => Math.hypot(q.x - p.x, q.y - p.y) < 0.35);

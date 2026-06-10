@@ -592,6 +592,110 @@ input:focus {
   margin: 0 auto;
 }
 
+/* ---------- Map-Wizard ---------- */
+
+.wizard-steps {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.wstep {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: var(--text-dim);
+}
+
+.wstep.on {
+  background: var(--ink);
+  color: #fff;
+}
+
+.wstep.done {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13.5px;
+}
+
+.upload-zone input {
+  margin-top: 10px;
+}
+
+.wizard-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.wizard-controls .hint {
+  margin: 0;
+}
+
+.wizard-controls label.inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-weight: 500;
+}
+
+.wizard-controls select {
+  font: inherit;
+  padding: 7px 9px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: #fbfcfd;
+}
+
+.wizard-controls input[type="number"] {
+  width: 76px;
+}
+
+.wizard-canvas {
+  width: 100%;
+  height: min(56vh, 520px);
+  background: #0e1116;
+  border-radius: 12px;
+  touch-action: none;
+  display: block;
+  user-select: none;
+}
+
+.map-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex: none;
+}
+
+.track-item.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.badge-active {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 /* ---------- Toast ---------- */
 
 .toast {

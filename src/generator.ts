@@ -1,6 +1,7 @@
 import type { GeneratorOptions, MapConfig, ObstacleInstance, Pylon, Rules } from "./types";
 import { TEMPLATES } from "./templates";
 import { bbox, minPointDist, rotatePoint, uid, worldPylons } from "./geometry";
+import { boundsOk } from "./validation";
 
 /**
  * Zufallsgenerator für Strecken.
@@ -46,9 +47,12 @@ function tryGenerate(
   const m = rules.edgeMargin;
 
   const totalCount = count + (withZiel ? 1 : 0);
+  let backtracks = 0;
 
   for (let i = 0; i < totalCount; i++) {
-    const isZiel = withZiel && i === totalCount - 1;
+    // Die sperrige Zielgasse zuerst auf die leere Fläche setzen;
+    // die Kette wird am Ende umgedreht, damit sie die letzte Aufgabe ist.
+    const isZiel = withZiel && i === 0;
     const tpl = isZiel
       ? TEMPLATES.find((t) => t.id === "zielgasse")!
       : pool[Math.floor(Math.random() * pool.length)];
@@ -85,16 +89,8 @@ function tryGenerate(
         pylons,
       };
       const world = worldPylons(inst);
-      const wb = bbox(world);
-      // gleiche Grenzprüfung wie validation.ts: inkl. halber Bodenplatte
-      const half = rules.pylonBase / 2;
-      if (
-        wb.minX - half < m ||
-        wb.minY - half < m ||
-        wb.maxX + half > map.width - m ||
-        wb.maxY + half > map.height - m
-      )
-        continue;
+      // gleiche Prüfung wie validation.ts (Polygon-Grenze, Sperrzonen, Rand)
+      if (!boundsOk(world, map, rules)) continue;
 
       // Mindestabstand zu allen, Maximalabstand zur vorherigen Aufgabe
       let valid = true;
@@ -115,7 +111,16 @@ function tryGenerate(
       placedPoints.push(world);
       ok = true;
     }
-    if (!ok) return null;
+    if (!ok) {
+      // Sackgasse: letzte Aufgabe zurücknehmen und neu versuchen
+      if (i <= 1 || backtracks >= 12) return null;
+      backtracks++;
+      placed.pop();
+      placedPoints.pop();
+      i -= 2; // i-1 erneut platzieren (Schleife inkrementiert wieder)
+    }
   }
+  // Kette umdrehen → Zielgasse ist die letzte Aufgabe
+  if (withZiel) placed.reverse();
   return placed;
 }

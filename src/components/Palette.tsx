@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { TEMPLATES } from "../templates";
 import { useStore } from "../store";
 import { ObstaclePreview } from "./ObstacleGfx";
-import { canvasBridge } from "../canvasBridge";
+import { canvasBridge, safeCapture } from "../canvasBridge";
 import type { Pylon } from "../types";
 
 /**
@@ -35,7 +35,7 @@ export function Palette() {
     pylons: Pylon[],
   ) => {
     e.preventDefault();
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    safeCapture(e.currentTarget as Element, e.pointerId);
     dragInfo.current = { kind, id, pylons, startX: e.clientX, startY: e.clientY, moved: false };
   };
 
