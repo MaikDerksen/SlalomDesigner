@@ -53,5 +53,6 @@ console.log(
   `Aufgaben: ${obstacles.length} | Routenpunkte: ${route.points.length} | ` +
     `Warnungen: ${analysis.warnings.length} | Kreuzungen: ${analysis.crossings.length}`,
 );
+console.log("Warnungen:", analysis.warnings.map((w) => w.kind).join(", ") || "keine");
 console.log("Reihenfolge entlang Route:", entries.map((e) => obstacles.findIndex((o) => o.id === e.obstacleId) + 1).join(" → "));
 console.log("Aufgaben:", obstacles.map((o, i) => `${i + 1}=${o.name}`).join(", "));

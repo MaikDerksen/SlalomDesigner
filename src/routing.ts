@@ -1,6 +1,6 @@
 import type { MapConfig, ObstacleInstance, Rules, V2 } from "./types";
 import { templateById } from "./templates";
-import { bbox, dist, pointInPolygon, resample, rotatePoint } from "./geometry";
+import { bbox, dist, pointInPolygon, resample, rotatePoint, worldPylons } from "./geometry";
 
 /**
  * Strecken-Route: verbindet die Fahrlinien der Hindernisse in Reihenfolge.
@@ -22,7 +22,7 @@ export interface RouteData {
 
 export interface RouteWarning {
   p: V2;
-  kind: "radius" | "bounds";
+  kind: "radius" | "bounds" | "pylon";
   msg: string;
 }
 
@@ -82,14 +82,19 @@ function tangentAt(path: V2[], end: "start" | "end"): V2 {
   return norm({ x: path[n - 1].x - path[n - 2].x, y: path[n - 1].y - path[n - 2].y });
 }
 
-/** Kubische Bézier-Verbindung Ausfahrt → Einfahrt, tangentenstetig. */
-function connector(e: V2, te: V2, s: V2, ts: V2): V2[] {
+/**
+ * Bézier-Verbindung Ausfahrt → Einfahrt. `offset` verschiebt den Bauch der
+ * Kurve seitlich – damit kann der Router um Pylonen herum ausweichen.
+ */
+function connector(e: V2, te: V2, s: V2, ts: V2, offset = 0): V2[] {
   const d = dist(e, s);
   const k = Math.min(5, Math.max(1.2, d / 2.6));
-  const c1 = { x: e.x + te.x * k, y: e.y + te.y * k };
-  const c2 = { x: s.x - ts.x * k, y: s.y - ts.y * k };
+  const dir = norm({ x: s.x - e.x, y: s.y - e.y });
+  const perp = { x: -dir.y * offset, y: dir.x * offset };
+  const c1 = { x: e.x + te.x * k + perp.x, y: e.y + te.y * k + perp.y };
+  const c2 = { x: s.x - ts.x * k + perp.x, y: s.y - ts.y * k + perp.y };
   const out: V2[] = [];
-  const steps = Math.max(8, Math.round(d / SAMPLE));
+  const steps = Math.max(8, Math.round((d + Math.abs(offset) * 2) / SAMPLE));
   for (let i = 1; i < steps; i++) {
     const t = i / steps;
     const u = 1 - t;
@@ -101,8 +106,11 @@ function connector(e: V2, te: V2, s: V2, ts: V2): V2[] {
   return out;
 }
 
-/** Kosten einer Verbindung: Länge + Krümmungs- + Außerhalb-Strafe. */
-function connectorCost(pts: V2[], e: V2, s: V2, map: MapConfig): number {
+/** Mindest-Querabstand der Route zu jeder Pylone (Fuß) in m. */
+const PYLON_CLEAR = 0.55;
+
+/** Kosten einer Verbindung: Länge + Krümmung + Außerhalb- + Pylonen-Strafe. */
+function connectorCost(pts: V2[], e: V2, s: V2, map: MapConfig, pylons: V2[]): number {
   let len = dist(e, pts[0] ?? s);
   let turn = 0;
   const all = [e, ...pts, s];
@@ -116,7 +124,24 @@ function connectorCost(pts: V2[], e: V2, s: V2, map: MapConfig): number {
   for (const p of all) {
     if (!insideMap(p, map)) outside++;
   }
-  return len + turn * 3 + outside * 25;
+  return len + turn * 3 + outside * 25 + pylonPenalty(all, pylons);
+}
+
+/** Strafe, wenn die Verbindung durch/zu nah an Pylonen führt. */
+function pylonPenalty(pts: V2[], pylons: V2[]): number {
+  let pen = 0;
+  const c2 = PYLON_CLEAR * PYLON_CLEAR;
+  for (const p of pts) {
+    for (const q of pylons) {
+      const dx = p.x - q.x;
+      if (dx > PYLON_CLEAR || dx < -PYLON_CLEAR) continue;
+      const dy = p.y - q.y;
+      if (dy > PYLON_CLEAR || dy < -PYLON_CLEAR) continue;
+      const dd = dx * dx + dy * dy;
+      if (dd < c2) pen += (PYLON_CLEAR - Math.sqrt(dd)) * 90;
+    }
+  }
+  return pen;
 }
 
 function insideMap(p: V2, map: MapConfig): boolean {
@@ -139,6 +164,9 @@ export function autoRoute(
 
   const paths = obstacles.map((o) => resample(obstaclePath(o, rules), SAMPLE));
   const variants = paths.map((p) => [p, [...p].reverse()]);
+  // Alle Pylonen-Füße: Verbindungen dürfen nicht hindurchführen
+  const allPylons: V2[] = obstacles.flatMap((o) => worldPylons(o));
+  const OFFSETS = [0, 2.2, -2.2, 4.5, -4.5];
 
   // DP über Fahrtrichtung je Hindernis
   const n = obstacles.length;
@@ -159,9 +187,19 @@ export function autoRoute(
         const cur = variants[i][dCur];
         const s = cur[0];
         const ts = tangentAt(cur, "start");
-        const pts = connector(e, te, s, ts);
-        conns[i][dPrev][dCur] = pts;
-        const c = cost[i - 1][dPrev] + connectorCost(pts, e, s, map);
+        // Mehrere Ausweich-Kurven testen, beste (pylonenfreie) gewinnt
+        let bestPts: V2[] = [];
+        let bestC = Infinity;
+        for (const off of OFFSETS) {
+          const pts = connector(e, te, s, ts, off);
+          const c = connectorCost(pts, e, s, map, allPylons);
+          if (c < bestC) {
+            bestC = c;
+            bestPts = pts;
+          }
+        }
+        conns[i][dPrev][dCur] = bestPts;
+        const c = cost[i - 1][dPrev] + bestC;
         if (c < cost[i][dCur]) {
           cost[i][dCur] = c;
           from[i][dCur] = dPrev;
@@ -180,18 +218,10 @@ export function autoRoute(
     raw.push(...conns[i][dirs[i - 1]][dirs[i]]);
     raw.push(...variants[i][dirs[i]]);
   }
-  // Glätten: scharfe Polyline-Ecken der Fahrlinien werden zu kleinen Bögen
-  // (so fährt das Kart real – und die Radius-Analyse meldet keine Fehlalarme)
-  let points = resample(raw, SAMPLE);
-  for (let pass = 0; pass < 2; pass++) {
-    points = points.map((p, i) => {
-      if (i === 0 || i === points.length - 1) return p;
-      return {
-        x: (points[i - 1].x + 2 * p.x + points[i + 1].x) / 4,
-        y: (points[i - 1].y + 2 * p.y + points[i + 1].y) / 4,
-      };
-    });
-  }
+  // Nur gleichmäßig abtasten – NICHT glätten: Glättung würde die Fahrlinien
+  // in die Pylonen-Reihen hineinziehen. Die Hindernis-Linien sind per
+  // Konstruktion pylonenfrei, die Bézier-Verbindungen ohnehin glatt.
+  const points = resample(raw, SAMPLE);
   return { source: "auto", points: points.map((p) => ({ x: r2(p.x), y: r2(p.y) })) };
 }
 
@@ -282,6 +312,28 @@ export function analyzeRoute(
         msg: "Route verlässt die Fahrfläche / berührt eine Sperrzone",
       });
       outStart = -1;
+    }
+  }
+
+  // Route führt durch Pylonen (umgeworfene Pylonen = Strafsekunden, §9.1)
+  if (obstacles.length) {
+    const pylons = obstacles.flatMap((o) => worldPylons(o));
+    let hitStart = -1;
+    for (let i = 0; i < points.length; i++) {
+      const hit = pylons.some((q) => {
+        const dx = points[i].x - q.x;
+        const dy = points[i].y - q.y;
+        return dx * dx + dy * dy < 0.3 * 0.3;
+      });
+      if (hit && hitStart < 0) hitStart = i;
+      if ((!hit || i === points.length - 1) && hitStart >= 0) {
+        warnings.push({
+          p: points[Math.floor((hitStart + i) / 2)],
+          kind: "pylon",
+          msg: "Route führt durch Pylonen (Strafsekunden, §9.1)",
+        });
+        hitStart = -1;
+      }
     }
   }
 
