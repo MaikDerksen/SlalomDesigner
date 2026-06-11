@@ -129,7 +129,54 @@ async function readObstacles(db: pg.PoolClient | pg.Pool, trackId: string): Prom
   }));
 }
 
+interface RouteDto {
+  source: "auto" | "drawn";
+  points: { x: number; y: number }[];
+}
+
+async function readRoute(db: pg.PoolClient | pg.Pool, trackId: string): Promise<RouteDto | null> {
+  const src = await db.query("SELECT route_source FROM tracks WHERE id = $1", [trackId]);
+  if (!src.rowCount || !src.rows[0].route_source) return null;
+  const pts = await db.query(
+    "SELECT x_m::float8 AS x, y_m::float8 AS y FROM track_route_points WHERE track_id = $1 ORDER BY point_index",
+    [trackId],
+  );
+  return { source: src.rows[0].route_source, points: pts.rows };
+}
+
 /* ---------- Schreib-Helfer ---------- */
+
+async function writeRoute(c: pg.PoolClient, trackId: string, route: RouteDto | null | undefined) {
+  await c.query("DELETE FROM track_route_points WHERE track_id = $1", [trackId]);
+  const valid = route && Array.isArray(route.points) && route.points.length > 3;
+  await c.query("UPDATE tracks SET route_source = $2 WHERE id = $1", [
+    trackId,
+    valid ? (route.source === "drawn" ? "drawn" : "auto") : null,
+  ]);
+  if (!valid) return;
+  // Punktmenge begrenzen (Entwürfe werden häufig geschrieben)
+  const pts = route.points.slice(0, 4000);
+  const values: string[] = [];
+  const params: unknown[] = [trackId];
+  pts.forEach((p, i) => {
+    params.push(i, p.x, p.y);
+    const base = 1 + i * 3;
+    values.push(`($1, $${base + 1}, $${base + 2}, $${base + 3})`);
+  });
+  for (let off = 0; off < values.length; off += 500) {
+    const chunkVals = values.slice(off, off + 500);
+    const chunkParams = [trackId, ...params.slice(1 + off * 3, 1 + (off + 500) * 3)];
+    // Platzhalter je Chunk neu nummerieren
+    const rebuilt = chunkVals.map((_, k) => {
+      const b = 1 + k * 3;
+      return `($1, $${b + 1}, $${b + 2}, $${b + 3})`;
+    });
+    await c.query(
+      `INSERT INTO track_route_points (track_id, point_index, x_m, y_m) VALUES ${rebuilt.join(",")}`,
+      chunkParams,
+    );
+  }
+}
 
 async function writeMapData(c: pg.PoolClient, mapId: string, p: MapPayload) {
   await c.query("DELETE FROM map_boundary_points WHERE map_id = $1", [mapId]);
@@ -390,11 +437,12 @@ export function dataRouter(): Router {
       name: t.rows[0].name,
       map: await readMapDetail(pool, t.rows[0].map_id, req.auth!.clubId),
       obstacles: await readObstacles(pool, t.rows[0].id),
+      route: await readRoute(pool, t.rows[0].id),
     });
   });
 
   r.post("/tracks", async (req, res) => {
-    const { id, name, mapId, obstacles } = req.body ?? {};
+    const { id, name, mapId, obstacles, route } = req.body ?? {};
     if (!name?.trim() || !mapId) throw new HttpError(400, "Name und Map erforderlich");
     const trackId = await tx(async (c) => {
       const map = await c.query("SELECT 1 FROM maps WHERE id = $1 AND club_id = $2", [mapId, req.auth!.clubId]);
@@ -416,6 +464,7 @@ export function dataRouter(): Router {
         tid = ins.rows[0].id;
       }
       await replaceObstacles(c, tid, req.auth!.clubId, obstacles ?? []);
+      await writeRoute(c, tid, route);
       return tid;
     });
     res.json({ id: trackId });
@@ -439,11 +488,12 @@ export function dataRouter(): Router {
       name: t.rows[0].name,
       map: await readMapDetail(pool, t.rows[0].map_id, req.auth!.clubId),
       obstacles: await readObstacles(pool, t.rows[0].id),
+      route: await readRoute(pool, t.rows[0].id),
     });
   });
 
   r.put("/draft", async (req, res) => {
-    const { mapId, name, obstacles } = req.body ?? {};
+    const { mapId, name, obstacles, route } = req.body ?? {};
     if (!mapId) throw new HttpError(400, "Map erforderlich");
     await tx(async (c) => {
       const map = await c.query("SELECT 1 FROM maps WHERE id = $1 AND club_id = $2", [mapId, req.auth!.clubId]);
@@ -468,6 +518,7 @@ export function dataRouter(): Router {
         tid = ins.rows[0].id;
       }
       await replaceObstacles(c, tid, req.auth!.clubId, obstacles ?? []);
+      await writeRoute(c, tid, route);
     });
     res.status(204).end();
   });

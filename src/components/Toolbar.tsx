@@ -30,7 +30,7 @@ export function Toolbar() {
     }
     setSharing(true);
     try {
-      const res = await exportAndShare(map, obstacles, rules, currentTrackName, mapImage);
+      const res = await exportAndShare(map, obstacles, rules, currentTrackName, mapImage, route);
       showToast(res === "shared" ? "Bild geteilt" : "Bild gespeichert (Download)");
     } finally {
       setSharing(false);

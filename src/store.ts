@@ -600,6 +600,11 @@ export const useStore = create<AppState>((set, get) => {
   };
 });
 
+// Dev-Hook für Tests (nicht im Produktions-Build)
+if (import.meta.env.DEV) {
+  (window as unknown as { __store?: typeof useStore }).__store = useStore;
+}
+
 function summaryOf(detail: SavedMap): MapSummary {
   return {
     id: detail.id,

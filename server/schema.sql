@@ -136,6 +136,18 @@ CREATE TABLE IF NOT EXISTS track_obstacles (
   CHECK (template_id IS NOT NULL OR custom_obstacle_id IS NOT NULL)
 );
 
+-- Strecken-Route (Fahrlinie): geordnete Punktfolge je Strecke
+ALTER TABLE tracks ADD COLUMN IF NOT EXISTS route_source text
+  CHECK (route_source IN ('auto', 'drawn'));
+
+CREATE TABLE IF NOT EXISTS track_route_points (
+  track_id    uuid NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+  point_index integer NOT NULL,
+  x_m         numeric(8,2) NOT NULL,
+  y_m         numeric(8,2) NOT NULL,
+  PRIMARY KEY (track_id, point_index)
+);
+
 -- Pylonen-Schnappschuss je Hindernis (siehe 3NF-Begründung oben)
 CREATE TABLE IF NOT EXISTS track_obstacle_pylons (
   obstacle_id uuid NOT NULL REFERENCES track_obstacles(id) ON DELETE CASCADE,

@@ -22,8 +22,16 @@ Regelbasis: **Offizielles ADAC Kartslalom Reglement 2026** (§7 Parcoursaufbau, 
   wiederverwendbares Objekt in der Palette speichern
 - ⚙ **Regeln als Variablen** – alle Reglement-Maße (Abstände, Torbreite, Pylonenmaße …) in den
   Einstellungen änderbar, falls sich das Reglement ändert
-- 📤 **Senden** – erstellt ein PNG des Streckenplans (mit Datum, Maßstab, Legende) und teilt es über
-  den System-Share-Dialog (Mobile) bzw. lädt es herunter (Desktop)
+- 📤 **Senden** – erstellt ein PNG des Streckenplans (mit Datum, Maßstab, Legende, Route) und teilt es
+  über den System-Share-Dialog (Mobile) bzw. lädt es herunter (Desktop)
+- 🛣 **Strecken-Route** – zwei Wege: „Route" berechnet automatisch die Fahrlinie durch alle Aufgaben
+  (Richtung je Aufgabe per Optimierung, weiche Übergänge), „Zeichnen" übernimmt eine freihand
+  gezeichnete Linie und erkennt daraus Reihenfolge + Einfahrtsseite (Aufgaben werden umnummeriert).
+  Kreuzende Wege – im Kartslalom üblich – werden als **Brücke** dargestellt (der später gefahrene
+  Abschnitt liegt sichtbar oben) plus Richtungspfeile alle ~6 m, sodass Geradeaus und Abbiegen nie
+  verwechselt werden. Kritische Stellen werden markiert: zu enger Kurvenradius am Exit (gegen den
+  konfigurierbaren Kart-Wendekreis, §7.1 „mit vollem Lenkeinschlag fahrbar") und Verlassen der
+  Fahrfläche/Sperrzonen
 
 ## Hinterlegte Reglement-Defaults (konfigurierbar)
 

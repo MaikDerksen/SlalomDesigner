@@ -2,6 +2,7 @@ import type { MapConfig, MapImage, ObstacleInstance, Rules } from "./types";
 import { deg2rad } from "./geometry";
 import { validate } from "./validation";
 import { loadImage } from "./imageProc";
+import type { RouteData } from "./routing";
 
 /**
  * Rendert die Strecke als PNG (Canvas 2D) und teilt sie über die
@@ -13,8 +14,9 @@ export async function exportAndShare(
   rules: Rules,
   trackName: string,
   image?: MapImage | null,
+  route?: RouteData | null,
 ): Promise<"shared" | "downloaded"> {
-  const blob = await renderPng(map, obstacles, rules, trackName, image);
+  const blob = await renderPng(map, obstacles, rules, trackName, image, route);
   const fileName = `${sanitize(trackName)}_${new Date().toISOString().slice(0, 10)}.png`;
   const file = new File([blob], fileName, { type: "image/png" });
 
@@ -46,6 +48,7 @@ export async function renderPng(
   rules: Rules,
   trackName: string,
   image?: MapImage | null,
+  route?: RouteData | null,
 ): Promise<Blob> {
   // Maßstab so wählen, dass die längere Seite ~2400 px hat
   const headerH = 140;
@@ -158,6 +161,45 @@ export async function renderPng(
   ctx.fillStyle = "#16181d";
   ctx.font = `500 ${Math.max(14, scale * 0.45)}px system-ui, sans-serif`;
   ctx.fillText("5 m", ox + 5 * scale + 10, barY + 5);
+
+  // Strecken-Route (unter den Pylonen)
+  if (route && route.points.length > 3) {
+    const pts = route.points;
+    const toX = (p: { x: number }) => ox + p.x * scale;
+    const toY = (p: { y: number }) => oy + p.y * scale;
+    const drawPath = (color: string, width: number) => {
+      ctx.beginPath();
+      pts.forEach((p, i) => (i === 0 ? ctx.moveTo(toX(p), toY(p)) : ctx.lineTo(toX(p), toY(p))));
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.lineJoin = "round";
+      ctx.stroke();
+    };
+    drawPath("#ffffff", 0.55 * scale);
+    drawPath("#0ea5e9", 0.24 * scale);
+    // Richtungspfeile
+    ctx.fillStyle = "#0369a1";
+    for (let i = 18; i < pts.length - 2; i += 18) {
+      const a = pts[i];
+      const b = pts[i + 2];
+      const ang = Math.atan2(b.y - a.y, b.x - a.x);
+      ctx.save();
+      ctx.translate(toX(a), toY(a));
+      ctx.rotate(ang);
+      ctx.beginPath();
+      ctx.moveTo(0.6 * scale, 0);
+      ctx.lineTo(-0.3 * scale, -0.42 * scale);
+      ctx.lineTo(-0.3 * scale, 0.42 * scale);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    // Start
+    ctx.beginPath();
+    ctx.arc(toX(pts[0]), toY(pts[0]), 0.55 * scale, 0, Math.PI * 2);
+    ctx.fillStyle = "#16a34a";
+    ctx.fill();
+  }
 
   // Hindernisse
   const flags = validate(obstacles, map, rules);
