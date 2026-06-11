@@ -405,6 +405,31 @@ export function dataRouter(): Router {
     res.json({ id, name: name.trim(), pylons });
   });
 
+  r.put("/custom-obstacles/:id", async (req, res) => {
+    const { name, pylons } = req.body ?? {};
+    if (!name?.trim() || !Array.isArray(pylons) || !pylons.length) {
+      throw new HttpError(400, "Name und Pylonen erforderlich");
+    }
+    await tx(async (c) => {
+      const owned = await c.query("SELECT 1 FROM custom_obstacles WHERE id = $1 AND club_id = $2", [
+        req.params.id,
+        req.auth!.clubId,
+      ]);
+      if (!owned.rowCount) throw new HttpError(404, "Hindernis nicht gefunden");
+      await c.query("UPDATE custom_obstacles SET name = $2 WHERE id = $1", [req.params.id, name.trim()]);
+      await c.query("DELETE FROM custom_obstacle_pylons WHERE custom_obstacle_id = $1", [req.params.id]);
+      for (let i = 0; i < pylons.length; i++) {
+        const p = pylons[i];
+        await c.query(
+          `INSERT INTO custom_obstacle_pylons (custom_obstacle_id, pylon_index, x_m, y_m, lying, angle_deg)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [req.params.id, i, p.x, p.y, !!p.lying, p.angle ?? null],
+        );
+      }
+    });
+    res.json({ id: req.params.id, name: name.trim(), pylons });
+  });
+
   r.delete("/custom-obstacles/:id", async (req, res) => {
     await pool.query("DELETE FROM custom_obstacles WHERE id = $1 AND club_id = $2", [
       req.params.id,

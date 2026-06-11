@@ -16,7 +16,7 @@ export function Palette() {
   const addObstacle = useStore((s) => s.addObstacle);
   const addCustomObstacle = useStore((s) => s.addCustomObstacle);
   const deleteCustomTemplate = useStore((s) => s.deleteCustomTemplate);
-  const setDialog = useStore((s) => s.setDialog);
+  const openDesigner = useStore((s) => s.openDesigner);
 
   const [ghost, setGhost] = useState<{ x: number; y: number; pylons: Pylon[] } | null>(null);
   const dragInfo = useRef<{
@@ -97,7 +97,7 @@ export function Palette() {
 
         <div className="palette-section">
           Eigene Hindernisse
-          <button className="mini-btn" onClick={() => setDialog("designer")} title="Neues Hindernis entwerfen">
+          <button className="mini-btn" onClick={() => openDesigner(null)} title="Neues Hindernis entwerfen">
             +
           </button>
         </div>
@@ -121,6 +121,14 @@ export function Palette() {
               <span>{t.name}</span>
               <small>eigenes</small>
             </div>
+            <button
+              className="mini-btn"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => openDesigner(t.id)}
+              title="Bearbeiten"
+            >
+              ✎
+            </button>
             <button
               className="mini-btn danger"
               onPointerDown={(e) => e.stopPropagation()}

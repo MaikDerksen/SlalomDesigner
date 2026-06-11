@@ -108,7 +108,11 @@ interface AppState {
   deleteTrack: (id: string) => void;
 
   addCustomTemplate: (name: string, pylons: Pylon[]) => void;
+  updateCustomTemplate: (id: string, name: string, pylons: Pylon[]) => void;
   deleteCustomTemplate: (id: string) => void;
+  /** Designer öffnen; id = bestehendes eigenes Hindernis bearbeiten. */
+  openDesigner: (editId: string | null) => void;
+  designerEditId: string | null;
 
   makeAutoRoute: () => void;
   setDrawingRoute: (on: boolean) => void;
@@ -211,6 +215,7 @@ export const useStore = create<AppState>((set, get) => {
     toast: null,
     route: null,
     drawingRoute: false,
+    designerEditId: null,
 
     init: async () => {
       try {
@@ -583,6 +588,18 @@ export const useStore = create<AppState>((set, get) => {
         })
         .catch((e) => get().showToast(errMsg(e)));
     },
+
+    updateCustomTemplate: (id, name, pylons) => {
+      api
+        .put<CustomTemplate>(`/custom-obstacles/${id}`, { name, pylons })
+        .then((tpl) => {
+          set({ customTemplates: get().customTemplates.map((t) => (t.id === id ? tpl : t)) });
+          get().showToast(`Hindernis „${name}" aktualisiert`);
+        })
+        .catch((e) => get().showToast(errMsg(e)));
+    },
+
+    openDesigner: (editId) => set({ designerEditId: editId, dialog: "designer" }),
 
     deleteCustomTemplate: (id) => {
       api

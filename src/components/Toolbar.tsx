@@ -48,23 +48,31 @@ export function Toolbar() {
       </div>
       <div className="toolbar-actions">
         <button onClick={() => setDialog("generator")} className="primary">⚡ Zufall</button>
-        <button onClick={makeAutoRoute} title="Route automatisch berechnen">🛣 Route</button>
-        <button
-          onClick={() => setDrawingRoute(!drawingRoute)}
-          className={drawingRoute ? "accent" : ""}
-          title="Fahrlinie von Hand zeichnen – Reihenfolge und Einfahrten werden erkannt"
-        >
-          ✏ {drawingRoute ? "Zeichnen…" : "Zeichnen"}
-        </button>
-        {route && (
-          <button onClick={clearRoute} title="Route entfernen">⌫ Route</button>
-        )}
-        <button onClick={() => setDialog("save")}>💾 Speichern</button>
-        <button onClick={() => setDialog("tracks")}>📂 Strecken</button>
-        <button onClick={() => setDialog("maps")}>📐 Fläche</button>
-        <button onClick={() => setDialog("settings")}>⚙ Regeln</button>
-        <button onClick={undo} disabled={!undoStack.length} title="Rückgängig (Strg+Z)">↩</button>
-        <button onClick={() => { if (confirm("Strecke wirklich leeren?")) clearTrack(); }}>🗑 Neu</button>
+        <div className="tb-group" title="Strecken-Route">
+          <button onClick={makeAutoRoute} title="Route automatisch berechnen">🛣 Auto</button>
+          <button
+            onClick={() => setDrawingRoute(!drawingRoute)}
+            className={drawingRoute ? "accent" : ""}
+            title="Fahrlinie von Hand zeichnen – Reihenfolge und Einfahrten werden erkannt"
+          >
+            ✏ {drawingRoute ? "Zeichnen…" : "Zeichnen"}
+          </button>
+          {route && (
+            <button onClick={clearRoute} title="Route entfernen">⌫</button>
+          )}
+        </div>
+        <div className="tb-group" title="Bearbeiten">
+          <button onClick={undo} disabled={!undoStack.length} title="Rückgängig (Strg+Z)">↩</button>
+          <button onClick={() => { if (confirm("Strecke wirklich leeren?")) clearTrack(); }} title="Strecke leeren">
+            🗑
+          </button>
+        </div>
+        <div className="tb-group" title="Bibliothek">
+          <button onClick={() => setDialog("save")}>💾 Speichern</button>
+          <button onClick={() => setDialog("tracks")}>📂 Strecken</button>
+          <button onClick={() => setDialog("maps")}>📐 Fläche</button>
+          <button onClick={() => setDialog("settings")}>⚙</button>
+        </div>
         <button onClick={onShare} disabled={sharing} className="accent">
           {sharing ? "…" : "📤 Senden"}
         </button>
