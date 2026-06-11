@@ -18,6 +18,8 @@ import { templateById } from "./templates";
 import { uid } from "./geometry";
 import { generateTrack } from "./generator";
 import { collectLegacyData, clearLegacyData } from "./storage";
+import { autoRoute, routeEntries, smoothDrawnLine, type RouteData } from "./routing";
+import type { V2 } from "./types";
 
 export type DialogKind =
   | null
@@ -37,6 +39,7 @@ interface DraftResponse {
   name: string;
   map: MapDetail;
   obstacles: ObstacleInstance[];
+  route?: RouteData | null;
 }
 
 interface AppState {
@@ -62,6 +65,10 @@ interface AppState {
   dragTemplate: { templateId: string; name: string; pylons: Pylon[] } | null;
   undoStack: ObstacleInstance[][];
   toast: string | null;
+  /** Eingezeichnete oder automatisch erzeugte Strecken-Route. */
+  route: RouteData | null;
+  /** Zeichenmodus für die Route aktiv? */
+  drawingRoute: boolean;
 
   init: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -103,6 +110,11 @@ interface AppState {
   addCustomTemplate: (name: string, pylons: Pylon[]) => void;
   deleteCustomTemplate: (id: string) => void;
 
+  makeAutoRoute: () => void;
+  setDrawingRoute: (on: boolean) => void;
+  applyDrawnRoute: (raw: V2[]) => void;
+  clearRoute: () => void;
+
   showToast: (msg: string) => void;
 }
 
@@ -117,10 +129,10 @@ export const useStore = create<AppState>((set, get) => {
   const scheduleDraftSave = () => {
     if (draftTimer) clearTimeout(draftTimer);
     draftTimer = setTimeout(async () => {
-      const { user, map, obstacles, currentTrackName } = get();
+      const { user, map, obstacles, currentTrackName, route } = get();
       if (!user || !map.mapId) return;
       try {
-        await api.put("/draft", { mapId: map.mapId, name: currentTrackName, obstacles });
+        await api.put("/draft", { mapId: map.mapId, name: currentTrackName, obstacles, route });
       } catch {
         // Autosave still fehlschlagen lassen – nächste Änderung versucht es erneut
       }
@@ -162,7 +174,12 @@ export const useStore = create<AppState>((set, get) => {
 
     if (draft) {
       applyMapDetail(draft.map);
-      set({ obstacles: draft.obstacles, currentTrackName: draft.name, currentTrackId: null });
+      set({
+        obstacles: draft.obstacles,
+        currentTrackName: draft.name,
+        currentTrackId: null,
+        route: draft.route ?? null,
+      });
     } else if (maps.length) {
       const detail = await api.get<MapDetail>(`/maps/${maps[0].id}`);
       applyMapDetail(detail);
@@ -192,6 +209,8 @@ export const useStore = create<AppState>((set, get) => {
     dragTemplate: null,
     undoStack: [],
     toast: null,
+    route: null,
+    drawingRoute: false,
 
     init: async () => {
       try {
@@ -248,6 +267,8 @@ export const useStore = create<AppState>((set, get) => {
         currentTrackName: "Neue Strecke",
         undoStack: [],
         dialog: null,
+        route: null,
+        drawingRoute: false,
       });
     },
 
@@ -418,7 +439,13 @@ export const useStore = create<AppState>((set, get) => {
 
     clearTrack: () => {
       get().pushUndo();
-      set({ obstacles: [], selectedId: null, currentTrackId: null, currentTrackName: "Neue Strecke" });
+      set({
+        obstacles: [],
+        selectedId: null,
+        currentTrackId: null,
+        currentTrackName: "Neue Strecke",
+        route: null,
+      });
       scheduleDraftSave();
     },
 
@@ -427,13 +454,69 @@ export const useStore = create<AppState>((set, get) => {
       const result = generateTrack(map, rules, opts, customTemplates);
       if (!result) return false;
       get().pushUndo();
-      set({ obstacles: result, selectedId: null, currentTrackId: null, currentTrackName: "Zufallsstrecke" });
+      set({
+        obstacles: result,
+        selectedId: null,
+        currentTrackId: null,
+        currentTrackName: "Zufallsstrecke",
+        route: null,
+      });
       scheduleDraftSave();
       return true;
     },
 
+    makeAutoRoute: () => {
+      const { obstacles, map, rules } = get();
+      if (obstacles.length < 2) {
+        get().showToast("Mindestens 2 Aufgaben für eine Route nötig");
+        return;
+      }
+      const route = autoRoute(obstacles, map, rules);
+      if (!route) {
+        get().showToast("Route konnte nicht berechnet werden");
+        return;
+      }
+      set({ route, drawingRoute: false });
+      scheduleDraftSave();
+    },
+
+    setDrawingRoute: (on) => {
+      set({ drawingRoute: on, selectedId: null });
+      if (on) get().showToast("Fahrlinie mit dem Finger/der Maus über die Aufgaben zeichnen");
+    },
+
+    applyDrawnRoute: (raw) => {
+      const { obstacles, rules } = get();
+      const points = smoothDrawnLine(raw);
+      if (points.length < 10) {
+        set({ drawingRoute: false });
+        get().showToast("Linie zu kurz – Route nicht übernommen");
+        return;
+      }
+      const entries = routeEntries(points, obstacles, rules);
+      const visited = entries
+        .map((e) => obstacles.find((o) => o.id === e.obstacleId))
+        .filter((o): o is ObstacleInstance => !!o);
+      const rest = obstacles.filter((o) => !entries.some((e) => e.obstacleId === o.id));
+      get().pushUndo();
+      set({
+        obstacles: [...visited, ...rest],
+        route: { source: "drawn", points },
+        drawingRoute: false,
+      });
+      scheduleDraftSave();
+      get().showToast(
+        `Route übernommen: ${visited.length} Aufgaben in Fahr-Reihenfolge${rest.length ? `, ${rest.length} nicht getroffen` : ""}`,
+      );
+    },
+
+    clearRoute: () => {
+      set({ route: null, drawingRoute: false });
+      scheduleDraftSave();
+    },
+
     saveCurrentTrack: (name) => {
-      const { map, obstacles, currentTrackId } = get();
+      const { map, obstacles, currentTrackId, route } = get();
       if (!map.mapId) {
         get().showToast("Keine Fläche aktiv");
         return;
@@ -444,6 +527,7 @@ export const useStore = create<AppState>((set, get) => {
           name,
           mapId: map.mapId,
           obstacles,
+          route,
         })
         .then(async ({ id }) => {
           set({
@@ -459,7 +543,9 @@ export const useStore = create<AppState>((set, get) => {
 
     loadTrack: (id) => {
       api
-        .get<{ id: string; name: string; map: MapDetail; obstacles: ObstacleInstance[] }>(`/tracks/${id}`)
+        .get<{ id: string; name: string; map: MapDetail; obstacles: ObstacleInstance[]; route?: RouteData | null }>(
+          `/tracks/${id}`,
+        )
         .then((t) => {
           applyMapDetail(t.map);
           set({
@@ -469,6 +555,7 @@ export const useStore = create<AppState>((set, get) => {
             selectedId: null,
             dialog: null,
             undoStack: [],
+            route: t.route ?? null,
           });
           scheduleDraftSave();
         })

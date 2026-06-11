@@ -20,6 +20,9 @@ export const DEFAULT_RULES: Rules = {
   zielWidth: 2.5, // §7.3.16
   zielLength: 8, // §7.3.16: 8–10 m
   edgeMargin: 1, // Abstand der Aufgaben zum Platzrand (Empfehlung)
+  // §7.1: fahrbar mit vollem Lenkeinschlag. Das Reglement selbst verlangt
+  // U-Turns mit ~1,1 m Radius (Z-Gasse), also liegt der Kart-Wendekreis darunter.
+  kartTurnRadius: 1.0,
 };
 
 /** Beschriftung + Einheit für den Einstellungsdialog. */
@@ -45,4 +48,5 @@ export const RULE_FIELDS: {
   { key: "zielWidth", label: "Zielgasse: Breite", unit: "m", step: 0.1, hint: "§7.3.16 – 2,5 m" },
   { key: "zielLength", label: "Zielgasse: Länge", unit: "m", step: 0.5, hint: "§7.3.16 – 8–10 m" },
   { key: "edgeMargin", label: "Randabstand zur Fahrflächengrenze", unit: "m", step: 0.5, hint: "§8 – Sicherheitsabstand" },
+  { key: "kartTurnRadius", label: "Kart-Wendekreis (Radius)", unit: "m", step: 0.1, hint: "§7.1 – fahrbar mit vollem Lenkeinschlag" },
 ];

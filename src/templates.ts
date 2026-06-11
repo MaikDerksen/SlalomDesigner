@@ -266,7 +266,7 @@ const BUILDERS: { id: string; name: string; ref: string; make: Builder }[] = [
         { x: 0, y: inner },
         { x: dirs[1].x * inner, y: dirs[1].y * inner },
         tipL,
-        ...arc(tipL.x - 0.9, tipL.y - 0.6, 1.0, -35, -395, 20),
+        ...arc(tipL.x - 1.1, tipL.y - 0.75, 1.3, -35, -395, 24),
         tipL,
         { x: dirs[1].x * inner, y: dirs[1].y * inner },
         { x: 0, y: inner * 0.4 },

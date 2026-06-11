@@ -8,6 +8,7 @@ import { ObstacleDesigner } from "./components/ObstacleDesigner";
 import { MapWizard } from "./components/MapWizard";
 import { LoginScreen } from "./components/LoginScreen";
 import { validate } from "./validation";
+import { analyzeRoute } from "./routing";
 
 export default function App() {
   const dialog = useStore((s) => s.dialog);
@@ -19,6 +20,7 @@ export default function App() {
   const user = useStore((s) => s.user);
   const authReady = useStore((s) => s.authReady);
   const init = useStore((s) => s.init);
+  const route = useStore((s) => s.route);
 
   useEffect(() => {
     init();
@@ -44,6 +46,19 @@ export default function App() {
     });
     return { tooClose, out };
   }, [obstacles, map, rules]);
+
+  const routeInfo = useMemo(() => {
+    if (!route || route.points.length < 4) return null;
+    let len = 0;
+    for (let i = 1; i < route.points.length; i++) {
+      len += Math.hypot(
+        route.points[i].x - route.points[i - 1].x,
+        route.points[i].y - route.points[i - 1].y,
+      );
+    }
+    const a = analyzeRoute(route.points, map, rules, obstacles);
+    return { len, warnings: a.warnings.length };
+  }, [route, map, rules, obstacles]);
 
   if (!authReady) {
     return <div className="login-wrap"><div className="hint">Lade…</div></div>;
@@ -76,6 +91,16 @@ export default function App() {
         {issues.out > 0 && <span className="status-bad">⚠ {issues.out}× außerhalb der Fläche</span>}
         {issues.tooClose === 0 && issues.out === 0 && obstacles.length > 0 && (
           <span className="status-ok">✓ regelkonform (§7.2)</span>
+        )}
+        {routeInfo && (
+          <span>
+            Route: {routeInfo.len.toFixed(0)} m
+            {routeInfo.warnings > 0 ? (
+              <span className="status-bad"> · ⚠ {routeInfo.warnings} kritische Stellen</span>
+            ) : (
+              <span className="status-ok"> · ✓ fahrbar</span>
+            )}
+          </span>
         )}
       </footer>
 

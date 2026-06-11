@@ -3,6 +3,7 @@ import { useStore } from "../store";
 import { bbox, closestPair, rotatePoint, worldPylons } from "../geometry";
 import { validate } from "../validation";
 import { PylonShape } from "./ObstacleGfx";
+import { RouteLayer } from "./RouteLayer";
 import { canvasBridge, safeCapture } from "../canvasBridge";
 import type { ObstacleInstance, V2 } from "../types";
 
@@ -31,6 +32,9 @@ export function CanvasEditor() {
   const deleteObstacle = useStore((s) => s.deleteObstacle);
   const duplicateObstacle = useStore((s) => s.duplicateObstacle);
   const pushUndo = useStore((s) => s.pushUndo);
+  const route = useStore((s) => s.route);
+  const drawingRoute = useStore((s) => s.drawingRoute);
+  const applyDrawnRoute = useStore((s) => s.applyDrawnRoute);
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -41,6 +45,8 @@ export function CanvasEditor() {
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
   const movedRef = useRef(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  /** Punkte der gerade gezeichneten Fahrlinie (Weltkoordinaten). */
+  const [drawnPts, setDrawnPts] = useState<V2[] | null>(null);
 
   /* Beim Mount und bei Map-Änderung die Fläche einpassen */
   useEffect(() => {
@@ -104,6 +110,12 @@ export function CanvasEditor() {
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     movedRef.current = false;
 
+    if (drawingRoute) {
+      const w = toWorld(e.clientX, e.clientY);
+      setDrawnPts([w]);
+      return;
+    }
+
     if (pointersRef.current.size === 2) {
       const [a, b] = [...pointersRef.current.values()];
       dragRef.current = {
@@ -146,6 +158,14 @@ export function CanvasEditor() {
   const onPointerMove = (e: React.PointerEvent) => {
     if (!pointersRef.current.has(e.pointerId)) return;
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (drawingRoute && drawnPts) {
+      const w = toWorld(e.clientX, e.clientY);
+      const last = drawnPts[drawnPts.length - 1];
+      if (Math.hypot(w.x - last.x, w.y - last.y) > 0.2) setDrawnPts([...drawnPts, w]);
+      return;
+    }
+
     const d = dragRef.current;
 
     if (d.kind === "pinch" && pointersRef.current.size >= 2) {
@@ -186,6 +206,13 @@ export function CanvasEditor() {
 
   const onPointerUp = (e: React.PointerEvent) => {
     pointersRef.current.delete(e.pointerId);
+
+    if (drawingRoute && drawnPts) {
+      applyDrawnRoute(drawnPts);
+      setDrawnPts(null);
+      return;
+    }
+
     const d = dragRef.current;
     if (d.kind === "pan" && !movedRef.current) select(null);
     dragRef.current = { kind: "none" };
@@ -230,7 +257,7 @@ export function CanvasEditor() {
     <div className="canvas-wrap" ref={wrapRef}>
       <svg
         ref={svgRef}
-        className="canvas"
+        className={`canvas ${drawingRoute ? "drawing" : ""}`}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -339,6 +366,24 @@ export function CanvasEditor() {
           >
             {fmt(map.height)} m
           </text>
+
+          {/* Strecken-Route */}
+          {route && route.points.length > 3 && (
+            <RouteLayer route={route} obstacles={obstacles} map={map} rules={rules} scale={view.scale} />
+          )}
+
+          {/* Live-Vorschau der gezeichneten Fahrlinie */}
+          {drawnPts && drawnPts.length > 1 && (
+            <polyline
+              points={drawnPts.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill="none"
+              stroke="var(--route)"
+              strokeWidth={0.25}
+              strokeDasharray="0.5 0.3"
+              opacity={0.8}
+              pointerEvents="none"
+            />
+          )}
 
           {/* Abstandslinie beim Ziehen */}
           {distLine && (

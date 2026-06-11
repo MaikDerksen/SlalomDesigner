@@ -11,6 +11,8 @@
   --warn: #d97706;
   --ok: #16a34a;
   --pylon: #f97316;
+  --route: #0ea5e9;
+  --route-entry: #0369a1;
   --asphalt: #e2e5e9;
   --asphalt-border: #aab2bc;
   --grid: #cfd5db;
@@ -168,6 +170,10 @@ button.danger,
   background:
     radial-gradient(circle at 30% 20%, #fbfcfd 0%, var(--bg) 70%);
   user-select: none;
+}
+
+.canvas.drawing {
+  cursor: crosshair;
 }
 
 .selection-bar {

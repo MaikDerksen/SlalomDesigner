@@ -146,6 +146,12 @@ export interface Rules {
   zielLength: number;
   /** Mindestabstand der Strecke zum Rand der Fahrfläche in m (Reglement: 2–3 m zu festen Hindernissen). */
   edgeMargin: number;
+  /**
+   * Wendekreis-Radius des Karts in m (§7.1: der Parcours muss mit vollem
+   * Lenkeinschlag im Schritttempo fahrbar sein). Engere Kurven der Route
+   * werden als kritisch markiert.
+   */
+  kartTurnRadius: number;
 }
 
 /** Lichte Fahrspur-/Torbreite = Spurbreite + Zuschlag (Reglement: 1,65 m). */

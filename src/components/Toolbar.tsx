@@ -15,6 +15,11 @@ export function Toolbar() {
   const showToast = useStore((s) => s.showToast);
   const user = useStore((s) => s.user);
   const logout = useStore((s) => s.logout);
+  const route = useStore((s) => s.route);
+  const drawingRoute = useStore((s) => s.drawingRoute);
+  const makeAutoRoute = useStore((s) => s.makeAutoRoute);
+  const setDrawingRoute = useStore((s) => s.setDrawingRoute);
+  const clearRoute = useStore((s) => s.clearRoute);
   const [sharing, setSharing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -43,6 +48,17 @@ export function Toolbar() {
       </div>
       <div className="toolbar-actions">
         <button onClick={() => setDialog("generator")} className="primary">⚡ Zufall</button>
+        <button onClick={makeAutoRoute} title="Route automatisch berechnen">🛣 Route</button>
+        <button
+          onClick={() => setDrawingRoute(!drawingRoute)}
+          className={drawingRoute ? "accent" : ""}
+          title="Fahrlinie von Hand zeichnen – Reihenfolge und Einfahrten werden erkannt"
+        >
+          ✏ {drawingRoute ? "Zeichnen…" : "Zeichnen"}
+        </button>
+        {route && (
+          <button onClick={clearRoute} title="Route entfernen">⌫ Route</button>
+        )}
         <button onClick={() => setDialog("save")}>💾 Speichern</button>
         <button onClick={() => setDialog("tracks")}>📂 Strecken</button>
         <button onClick={() => setDialog("maps")}>📐 Fläche</button>
