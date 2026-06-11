@@ -1,9 +1,13 @@
-import type { CustomTemplate, MapConfig, Rules, SavedMap, Track } from "./types";
-import { DEFAULT_RULES } from "./rules";
+import type { CustomTemplate, Rules, SavedMap, Track } from "./types";
 
-/** Persistenz über localStorage (funktioniert im Web und in der Capacitor-WebView). */
+/**
+ * Einmalige Migration: Die App speicherte früher in localStorage.
+ * Beim ersten Login werden vorhandene Browser-Daten eingesammelt, per
+ * POST /api/import in die Datenbank übernommen und danach gelöscht.
+ * Neue Daten landen ausschließlich in der Datenbank.
+ */
 
-const KEYS = {
+const LEGACY_KEYS = {
   rules: "ksp.rules.v1",
   tracks: "ksp.tracks.v1",
   custom: "ksp.customTemplates.v1",
@@ -12,42 +16,39 @@ const KEYS = {
   session: "ksp.session.v1",
 };
 
-function load<T>(key: string, fallback: T): T {
+function read<T>(key: string): T | null {
   try {
     const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
+    return raw ? (JSON.parse(raw) as T) : null;
   } catch {
-    return fallback;
+    return null;
   }
 }
 
-function save(key: string, value: unknown): boolean {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch {
-    // Speicher voll / privater Modus
-    return false;
-  }
+export interface LegacyData {
+  rules: Partial<Rules> | null;
+  maps: SavedMap[];
+  tracks: Track[];
+  customTemplates: CustomTemplate[];
 }
 
-export const storage = {
-  loadRules: (): Rules => ({ ...DEFAULT_RULES, ...load<Partial<Rules>>(KEYS.rules, {}) }),
-  saveRules: (r: Rules) => save(KEYS.rules, r),
+/** Vorhandene Altdaten einsammeln (null, wenn nichts zu migrieren ist). */
+export function collectLegacyData(): LegacyData | null {
+  const maps = read<SavedMap[]>(LEGACY_KEYS.maps) ?? [];
+  const tracks = read<Track[]>(LEGACY_KEYS.tracks) ?? [];
+  const customTemplates = read<CustomTemplate[]>(LEGACY_KEYS.custom) ?? [];
+  const rules = read<Partial<Rules>>(LEGACY_KEYS.rules);
+  if (!maps.length && !tracks.length && !customTemplates.length && !rules) return null;
+  return { rules, maps, tracks, customTemplates };
+}
 
-  loadTracks: (): Track[] => load<Track[]>(KEYS.tracks, []),
-  saveTracks: (t: Track[]) => save(KEYS.tracks, t),
-
-  loadCustomTemplates: (): CustomTemplate[] => load<CustomTemplate[]>(KEYS.custom, []),
-  saveCustomTemplates: (t: CustomTemplate[]) => save(KEYS.custom, t),
-
-  loadMap: (): MapConfig => load<MapConfig>(KEYS.map, { name: "Trainingsplatz", width: 60, height: 40 }),
-  saveMap: (m: MapConfig) => save(KEYS.map, m),
-
-  loadMaps: (): SavedMap[] => load<SavedMap[]>(KEYS.maps, []),
-  saveMaps: (m: SavedMap[]): boolean => save(KEYS.maps, m),
-
-  loadSession: () => load<{ obstacles: unknown[]; trackId: string | null; trackName: string } | null>(KEYS.session, null),
-  saveSession: (s: { obstacles: unknown[]; trackId: string | null; trackName: string }) => save(KEYS.session, s),
-};
+/** Altdaten nach erfolgreichem Import entfernen. */
+export function clearLegacyData(): void {
+  for (const key of Object.values(LEGACY_KEYS)) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // privater Modus o. Ä. – ignorieren
+    }
+  }
+}

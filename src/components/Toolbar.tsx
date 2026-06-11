@@ -13,7 +13,10 @@ export function Toolbar() {
   const obstacles = useStore((s) => s.obstacles);
   const rules = useStore((s) => s.rules);
   const showToast = useStore((s) => s.showToast);
+  const user = useStore((s) => s.user);
+  const logout = useStore((s) => s.logout);
   const [sharing, setSharing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const onShare = async () => {
     if (!obstacles.length) {
@@ -49,6 +52,31 @@ export function Toolbar() {
         <button onClick={onShare} disabled={sharing} className="accent">
           {sharing ? "…" : "📤 Senden"}
         </button>
+        {user && (
+          <div className="user-menu-wrap">
+            <button onClick={() => setMenuOpen((o) => !o)} title={user.email}>
+              👤 {user.displayName}
+            </button>
+            {menuOpen && (
+              <div className="user-menu" onPointerLeave={() => setMenuOpen(false)}>
+                <div className="user-menu-club">
+                  <strong>{user.clubName}</strong>
+                  <small>{user.email}</small>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(user.inviteCode);
+                    showToast(`Einladungscode kopiert: ${user.inviteCode}`);
+                    setMenuOpen(false);
+                  }}
+                >
+                  🔗 Einladungscode: {user.inviteCode}
+                </button>
+                <button onClick={logout}>⎋ Abmelden</button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

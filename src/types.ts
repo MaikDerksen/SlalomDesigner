@@ -52,6 +52,38 @@ export interface MapConfig {
   blocked?: V2[][];
 }
 
+/** Angemeldeter Nutzer (vom Server). */
+export interface AuthUser {
+  id: string;
+  email: string;
+  displayName: string;
+  role: "admin" | "member";
+  clubName: string;
+  inviteCode: string;
+}
+
+/** Listeneintrag der Map-Bibliothek (ohne Bild/Polygone). */
+export interface MapSummary {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  hasImage: boolean;
+  boundaryCount: number;
+  blockedCount: number;
+}
+
+/** Listeneintrag gespeicherter Strecken. */
+export interface TrackSummary {
+  id: string;
+  name: string;
+  updatedAt: number;
+  mapName: string;
+  mapWidth: number;
+  mapHeight: number;
+  obstacleCount: number;
+}
+
 /** In der Bibliothek gespeicherte Fahrfläche. */
 export interface SavedMap {
   id: string;

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../store";
 import { Modal } from "./Dialogs";
 import { PolygonEditor } from "./PolygonEditor";
-import { dist, uid } from "../geometry";
+import { dist } from "../geometry";
 import { safeCapture } from "../canvasBridge";
 import { fileToMapImage, floodMask, closeMask, measureObject, toProcImage, traceContour } from "../imageProc";
 import type { MapImage, SavedMap, V2 } from "../types";
@@ -26,12 +26,11 @@ const REF_PRESETS = [
  */
 export function MapWizard() {
   const setDialog = useStore((s) => s.setDialog);
-  const maps = useStore((s) => s.maps);
-  const wizardEditId = useStore((s) => s.wizardEditId);
   const saveMapToLibrary = useStore((s) => s.saveMapToLibrary);
   const showToast = useStore((s) => s.showToast);
 
-  const editing = wizardEditId ? maps.find((m) => m.id === wizardEditId) ?? null : null;
+  /** Beim Bearbeiten: vom Server geladenes Map-Detail (siehe openWizard). */
+  const editing = useStore((s) => s.wizardMap);
 
   const [step, setStep] = useState<Step>(editing ? 1 : 0);
   const [image, setImage] = useState<MapImage | null>(editing?.image ?? null);
@@ -155,26 +154,24 @@ export function MapWizard() {
 
   const save = () => {
     if (!image) return;
-    const id = editing?.id ?? uid("map");
     const k = scaleMPerPx;
     const toM = (p: V2) => ({ x: r2(p.x * k), y: r2(p.y * k) });
+    // id = "" → der Server vergibt eine neue; sonst Update der bestehenden Map
     const saved: SavedMap = {
-      id,
+      id: editing?.id ?? "",
       name: title.trim() || "Platz",
-      createdAt: editing?.createdAt ?? Date.now(),
+      createdAt: editing?.createdAt ?? 0,
       image,
       calibration: cal,
       config: {
         name: title.trim() || "Platz",
         width: r2(mapW),
         height: r2(mapH),
-        mapId: id,
         boundary: boundary.length >= 3 ? boundary.map(toM) : undefined,
         blocked: blocked.length ? blocked.map((z) => z.map(toM)) : undefined,
       },
     };
     saveMapToLibrary(saved);
-    setDialog(null);
   };
 
   /* ---------- Render ---------- */

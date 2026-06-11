@@ -42,12 +42,41 @@ Alle 17 Aufgabentypen aus §7.3 sind als Vorlagen enthalten: Pylonentor, Einzelp
 Spurgasse (gerade/gebogen), Schweizer Slalom, Kreisel, Wende, Ypsilon, S-Spurgasse, Z-Gasse, Kasten,
 Schneckenhaus, Kreuz, Brezel/Knoten, Deutsches Eck, Schikane, Zielgasse.
 
+## Login, Vereine & Datenbank
+
+Die App ist mandantenfähig: Jeder **Verein** hat eigene Maps, Strecken, Hindernisse und
+Regel-Einstellungen. Registrierung gründet einen neuen Verein (Ersteller = Admin) oder tritt per
+**Einladungscode** einem bestehenden bei. Auth läuft über bcrypt-gehashte Passwörter und ein
+JWT im httpOnly-Cookie — **kein localStorage**. Der Arbeitsstand wird als Entwurf automatisch
+(debounced) in der Datenbank gesichert und beim nächsten Login wiederhergestellt.
+
+Persistenz: **PostgreSQL 16 im Docker-Container**, Schema in 3. Normalform
+([server/schema.sql](server/schema.sql)): `clubs → users`, `club_rules` (Regelwerk als
+Schlüssel/Wert je Verein), `maps` mit `map_images`, `map_boundary_points`,
+`map_blocked_zones(_points)`, `custom_obstacles(_pylons)`, `tracks` mit
+`track_obstacles` und `track_obstacle_pylons` (Pylonen als Schnappschuss, da das Regelwerk
+sich ändern kann). Punkte/Pylonen liegen als einzelne Zeilen mit Index vor — keine Arrays/JSON.
+
+**Seed:** Beim ersten Start mit leerer DB wird ein Verein samt Admin angelegt
+(`SEED_EMAIL`/`SEED_PASSWORD`, Default `admin@kartslalom.local` / `kart2026`) inkl.
+Reglement-Defaults und Standard-Fläche. Bestehende **Browser-Daten der alten Version werden
+beim ersten Login automatisch migriert** (POST `/api/import`) und danach aus dem localStorage
+entfernt — es geht nichts verloren.
+
 ## Entwicklung (Web)
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
+npm run db:up    # PostgreSQL im Docker-Container (Port 5433)
+npm run server   # API auf http://localhost:3001 (legt Schema an + seedet)
+npm run dev      # Frontend auf http://localhost:5173 (proxyt /api)
 npm run build    # Produktions-Build nach dist/
+```
+
+## Produktion (Docker Compose)
+
+```bash
+JWT_SECRET=<zufälliger-wert> docker compose up -d   # db + app (API + Frontend) auf :3001
 ```
 
 ## iOS / Android (Capacitor)
@@ -60,13 +89,14 @@ npx cap sync
 npx cap open android  # öffnet Android Studio / Xcode
 ```
 
-Die App ist eine reine Client-App ohne Backend: Strecken, eigene Hindernisse und Regel-Einstellungen
-liegen im lokalen Speicher des Geräts. Das Teilen nutzt die Web Share API, die in der Capacitor-WebView
-und auf modernen mobilen Browsern den nativen Share-Dialog öffnet.
+Das Teilen nutzt die Web Share API, die in der Capacitor-WebView und auf modernen mobilen
+Browsern den nativen Share-Dialog öffnet. Die mobile App spricht dieselbe API wie das Web.
 
 ## Architektur
 
-- **React 18 + TypeScript + Vite**, Zustand für State, kein Backend
+- **React 18 + TypeScript + Vite** (Frontend), Zustand für State
+- **Express 5 + PostgreSQL** ([server/](server/)): Auth (bcrypt + JWT-Cookie), REST-API,
+  Schema-Migration und Seed beim Start
 - `src/templates.ts` – parametrische Hindernis-Vorlagen: erzeugen die Pylonen-Anordnung aus dem aktuellen Regelwerk
 - `src/validation.ts` – Regelprüfung (Fuß-zu-Fuß-Abstände, Flächengrenzen)
 - `src/generator.ts` – sequentielle Zufallsplatzierung mit 4–10-m-Kette und Rückweisungs-Sampling

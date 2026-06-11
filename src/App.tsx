@@ -6,6 +6,7 @@ import { Palette } from "./components/Palette";
 import { GeneratorDialog, MapDialog, MapsDialog, SaveDialog, SettingsDialog, TracksDialog } from "./components/Dialogs";
 import { ObstacleDesigner } from "./components/ObstacleDesigner";
 import { MapWizard } from "./components/MapWizard";
+import { LoginScreen } from "./components/LoginScreen";
 import { validate } from "./validation";
 
 export default function App() {
@@ -15,6 +16,13 @@ export default function App() {
   const obstacles = useStore((s) => s.obstacles);
   const map = useStore((s) => s.map);
   const rules = useStore((s) => s.rules);
+  const user = useStore((s) => s.user);
+  const authReady = useStore((s) => s.authReady);
+  const init = useStore((s) => s.init);
+
+  useEffect(() => {
+    init();
+  }, [init]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -36,6 +44,18 @@ export default function App() {
     });
     return { tooClose, out };
   }, [obstacles, map, rules]);
+
+  if (!authReady) {
+    return <div className="login-wrap"><div className="hint">Lade…</div></div>;
+  }
+  if (!user) {
+    return (
+      <>
+        <LoginScreen />
+        {toast && <div className="toast">{toast}</div>}
+      </>
+    );
+  }
 
   return (
     <div className="app">

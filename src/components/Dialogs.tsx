@@ -171,14 +171,13 @@ export function SettingsDialog() {
 export function MapDialog() {
   const setDialog = useStore((s) => s.setDialog);
   const map = useStore((s) => s.map);
-  const setMap = useStore((s) => s.setMap);
+  const saveRectMap = useStore((s) => s.saveRectMap);
   const [name, setName] = useState(map.name);
   const [w, setW] = useState(map.width);
   const [h, setH] = useState(map.height);
 
   const apply = () => {
-    setMap({ name: name.trim() || "Trainingsplatz", width: clamp(w), height: clamp(h) });
-    setDialog(null);
+    saveRectMap(name.trim() || "Trainingsplatz", clamp(w), clamp(h));
   };
 
   return (
@@ -248,28 +247,27 @@ export function MapsDialog() {
       <div className="track-list">
         {maps.map((m) => (
           <div key={m.id} className={`track-item ${map.mapId === m.id ? "active" : ""}`}>
-            {m.image && (
-              <img className="map-thumb" src={m.image.data} alt="" />
-            )}
             <div className="track-info" onClick={() => activateMap(m.id)}>
               <strong>
+                {m.hasImage ? "🛰 " : "📐 "}
                 {m.name}
                 {map.mapId === m.id && <span className="badge-active"> aktiv</span>}
               </strong>
               <small>
-                {m.config.width.toFixed(1)} × {m.config.height.toFixed(1)} m
-                {m.config.boundary ? ` · Maske: ${m.config.boundary.length} Punkte` : ""}
-                {m.config.blocked?.length ? ` · ${m.config.blocked.length} Sperrzone(n)` : ""}
+                {m.width.toFixed(1)} × {m.height.toFixed(1)} m
+                {m.boundaryCount ? ` · Maske: ${m.boundaryCount} Punkte` : ""}
+                {m.blockedCount ? ` · ${m.blockedCount} Sperrzone(n)` : ""}
               </small>
             </div>
             <button className="primary" onClick={() => activateMap(m.id)}>Wählen</button>
-            {m.image && (
+            {m.hasImage && (
               <button className="mini-btn" onClick={() => openWizard(m.id)} title="Bearbeiten">✎</button>
             )}
             <button
               className="mini-btn danger"
               onClick={() => {
-                if (confirm(`Map „${m.name}" löschen?`)) deleteMap(m.id);
+                if (confirm(`Map „${m.name}" löschen? Strecken auf dieser Fläche werden mitgelöscht.`))
+                  deleteMap(m.id);
               }}
             >
               ✕
@@ -329,7 +327,7 @@ export function TracksDialog() {
               <div className="track-info" onClick={() => loadTrack(t.id)}>
                 <strong>{t.name}</strong>
                 <small>
-                  {t.obstacles.length} Aufgaben · {t.map.width}×{t.map.height} m ·{" "}
+                  {t.obstacleCount} Aufgaben · {t.mapName} ({t.mapWidth.toFixed(0)}×{t.mapHeight.toFixed(0)} m) ·{" "}
                   {new Date(t.updatedAt).toLocaleDateString("de-DE")}
                 </small>
               </div>
