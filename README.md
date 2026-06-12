@@ -97,6 +97,28 @@ npm run build    # Produktions-Build nach dist/
 JWT_SECRET=<zufälliger-wert> docker compose up -d   # db + app (API + Frontend) auf :3001
 ```
 
+## Deployment auf dem NAS (privates Docker-Hub-Image)
+
+Das Image wird als **privates** Repo `maik05/slalom-designer` auf Docker Hub gepflegt
+(Multi-Stage-Build, Healthcheck auf `/api/health`).
+
+```bash
+# Auf der Entwickler-Maschine: neue Version bauen & pushen
+docker build -t maik05/slalom-designer:latest .
+docker push maik05/slalom-designer:latest
+
+# Auf dem NAS (einmalig anmelden, da privates Repo)
+docker login
+# deploy/docker-compose.nas.yml als docker-compose.yml ablegen, JWT_SECRET setzen
+docker compose up -d          # Start
+docker compose pull && docker compose up -d   # Update auf neue Version
+```
+
+**Wichtigstes Volume:** `slalom_dbdata` (PostgreSQL) – enthält *alle* Daten (Vereine, Nutzer,
+Strecken, Maps inkl. Screenshots, Reglement-PDFs). Dieses Volume sichern = vollständiges Backup;
+der App-Container selbst ist zustandslos. Details und Backup-Beispiel in
+[deploy/docker-compose.nas.yml](deploy/docker-compose.nas.yml).
+
 ## iOS / Android (Capacitor)
 
 ```bash

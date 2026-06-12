@@ -1,0 +1,52 @@
+# SlalomDesigner – Deployment auf dem NAS
+#
+# Voraussetzungen auf dem NAS:
+#   1. Einmalig am privaten Registry anmelden:  docker login  (Nutzer maik05)
+#   2. Diese Datei als docker-compose.yml ablegen, JWT_SECRET unten setzen
+#   3. Starten:        docker compose up -d
+#      Aktualisieren:  docker compose pull && docker compose up -d
+#
+# Danach läuft die App (Frontend + API) auf  http://<nas-ip>:3001
+# Erster Login: admin@kartslalom.local / kart2026  (oder SEED_* unten setzen –
+# greift nur beim allerersten Start mit leerer Datenbank).
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ksp
+      POSTGRES_PASSWORD: ksp          # nur intern erreichbar (kein ports:-Eintrag)
+      POSTGRES_DB: ksp
+    volumes:
+      # WICHTIG – das einzige Volume mit allen Daten: Vereine, Nutzer,
+      # Strecken, Maps inkl. Screenshots, Hindernisse, Reglement-PDFs.
+      # Dieses Volume sichern = komplettes Backup der App.
+      - slalom_dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ksp -d ksp"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    image: maik05/slalom-designer:latest
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://ksp:ksp@db:5432/ksp
+      JWT_SECRET: "HIER-LANGEN-ZUFALLSWERT-EINSETZEN"   # z. B.: openssl rand -hex 32
+      # Optional, nur fuer den allerersten Start (leere DB):
+      # SEED_EMAIL: admin@meinverein.de
+      # SEED_PASSWORD: sicheres-passwort
+      # SEED_CLUB: Mein Verein e.V.
+    ports:
+      - "3001:3001"                   # links anpassen, falls 3001 belegt ist
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  # Benanntes Volume – bleibt bei "docker compose down" erhalten.
+  # Backup z. B.:  docker run --rm -v slalom_dbdata:/data -v $PWD:/backup \
+  #                alpine tar czf /backup/slalom-backup.tar.gz /data
+  slalom_dbdata:

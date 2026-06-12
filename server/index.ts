@@ -19,6 +19,9 @@ async function main() {
   app.use(express.json({ limit: "25mb" })); // Screenshot-DataURLs
   app.use(cookieParser());
 
+  // Health-Endpoint für Docker/Compose-Healthchecks (ohne Auth)
+  app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
   app.use("/api/auth", authRouter());
   app.use("/api", requireAuth, dataRouter());
 
