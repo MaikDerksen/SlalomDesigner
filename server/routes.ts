@@ -224,13 +224,11 @@ async function replaceObstacles(
   );
   for (let i = 0; i < obstacles.length; i++) {
     const o = obstacles[i];
-    let templateId: string | null = o.templateId ?? null;
-    let customId: string | null = null;
+    // template_id immer setzen: bleibt nach ON DELETE SET NULL der
+    // Custom-Referenz gültig (CHECK-Constraint) und erhält die Zuordnung
     const mapped = customIdMap?.get(o.templateId) ?? o.templateId;
-    if (customIds.has(mapped)) {
-      customId = mapped;
-      templateId = null;
-    }
+    const templateId: string | null = mapped ?? null;
+    const customId: string | null = customIds.has(mapped) ? mapped : null;
     const row = await c.query(
       `INSERT INTO track_obstacles (track_id, position_index, template_id, custom_obstacle_id, name, x_m, y_m, rotation_deg)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
@@ -355,12 +353,43 @@ export function dataRouter(): Router {
     res.status(204).end();
   });
 
-  /* Eigene Hindernisse */
-  r.get("/custom-obstacles", async (req, res) => {
+  /* Eigene Hindernisse (inkl. Fahrlinien-Varianten und Overrides) */
+
+  async function writeCustomData(
+    c: pg.PoolClient,
+    id: string,
+    pylons: PylonDto[],
+    routes: { x: number; y: number }[][] | undefined,
+  ) {
+    await c.query("DELETE FROM custom_obstacle_pylons WHERE custom_obstacle_id = $1", [id]);
+    await c.query("DELETE FROM custom_obstacle_route_points WHERE custom_obstacle_id = $1", [id]);
+    for (let i = 0; i < pylons.length; i++) {
+      const p = pylons[i];
+      await c.query(
+        `INSERT INTO custom_obstacle_pylons (custom_obstacle_id, pylon_index, x_m, y_m, lying, angle_deg)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [id, i, p.x, p.y, !!p.lying, p.angle ?? null],
+      );
+    }
+    const variants = (routes ?? []).filter((v) => Array.isArray(v) && v.length >= 2).slice(0, 10);
+    for (let v = 0; v < variants.length; v++) {
+      const pts = variants[v].slice(0, 1000);
+      for (let i = 0; i < pts.length; i++) {
+        await c.query(
+          `INSERT INTO custom_obstacle_route_points (custom_obstacle_id, variant_index, point_index, x_m, y_m)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [id, v, i, pts[i].x, pts[i].y],
+        );
+      }
+    }
+  }
+
+  async function readCustomObstacles(clubId: string) {
     const obs = (
-      await pool.query("SELECT id, name FROM custom_obstacles WHERE club_id = $1 ORDER BY created_at", [
-        req.auth!.clubId,
-      ])
+      await pool.query(
+        "SELECT id, name, base_template_id FROM custom_obstacles WHERE club_id = $1 ORDER BY created_at",
+        [clubId],
+      )
     ).rows;
     const pylons = (
       await pool.query(
@@ -368,45 +397,67 @@ export function dataRouter(): Router {
          FROM custom_obstacle_pylons p
          JOIN custom_obstacles o ON o.id = p.custom_obstacle_id
          WHERE o.club_id = $1 ORDER BY p.custom_obstacle_id, p.pylon_index`,
-        [req.auth!.clubId],
+        [clubId],
       )
     ).rows;
-    res.json(
-      obs.map((o) => ({
+    const routePts = (
+      await pool.query(
+        `SELECT r.custom_obstacle_id AS oid, r.variant_index AS v, r.x_m::float8 AS x, r.y_m::float8 AS y
+         FROM custom_obstacle_route_points r
+         JOIN custom_obstacles o ON o.id = r.custom_obstacle_id
+         WHERE o.club_id = $1 ORDER BY r.custom_obstacle_id, r.variant_index, r.point_index`,
+        [clubId],
+      )
+    ).rows;
+    return obs.map((o) => {
+      const routes: { x: number; y: number }[][] = [];
+      for (const rp of routePts) {
+        if (rp.oid !== o.id) continue;
+        while (routes.length <= rp.v) routes.push([]);
+        routes[rp.v].push({ x: rp.x, y: rp.y });
+      }
+      return {
         id: o.id,
         name: o.name,
+        baseTemplateId: o.base_template_id ?? undefined,
         pylons: pylons
           .filter((p) => p.oid === o.id)
           .map((p) => ({ x: p.x, y: p.y, ...(p.lying ? { lying: true, angle: p.angle ?? 0 } : {}) })),
-      })),
-    );
+        routes: routes.length ? routes : undefined,
+      };
+    });
+  }
+
+  r.get("/custom-obstacles", async (req, res) => {
+    res.json(await readCustomObstacles(req.auth!.clubId));
   });
 
   r.post("/custom-obstacles", async (req, res) => {
-    const { name, pylons } = req.body ?? {};
+    const { name, pylons, routes, baseTemplateId } = req.body ?? {};
     if (!name?.trim() || !Array.isArray(pylons) || !pylons.length) {
       throw new HttpError(400, "Name und Pylonen erforderlich");
     }
     const id = await tx(async (c) => {
-      const row = await c.query(
-        "INSERT INTO custom_obstacles (club_id, name, created_by) VALUES ($1, $2, $3) RETURNING id",
-        [req.auth!.clubId, name.trim(), req.auth!.userId],
-      );
-      for (let i = 0; i < pylons.length; i++) {
-        const p = pylons[i];
-        await c.query(
-          `INSERT INTO custom_obstacle_pylons (custom_obstacle_id, pylon_index, x_m, y_m, lying, angle_deg)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [row.rows[0].id, i, p.x, p.y, !!p.lying, p.angle ?? null],
-        );
+      // Pro offiziellem Hindernis nur ein Override je Verein
+      if (baseTemplateId) {
+        await c.query("DELETE FROM custom_obstacles WHERE club_id = $1 AND base_template_id = $2", [
+          req.auth!.clubId,
+          baseTemplateId,
+        ]);
       }
+      const row = await c.query(
+        "INSERT INTO custom_obstacles (club_id, name, created_by, base_template_id) VALUES ($1, $2, $3, $4) RETURNING id",
+        [req.auth!.clubId, name.trim(), req.auth!.userId, baseTemplateId ?? null],
+      );
+      await writeCustomData(c, row.rows[0].id, pylons, routes);
       return row.rows[0].id as string;
     });
-    res.json({ id, name: name.trim(), pylons });
+    const all = await readCustomObstacles(req.auth!.clubId);
+    res.json(all.find((o) => o.id === id));
   });
 
   r.put("/custom-obstacles/:id", async (req, res) => {
-    const { name, pylons } = req.body ?? {};
+    const { name, pylons, routes } = req.body ?? {};
     if (!name?.trim() || !Array.isArray(pylons) || !pylons.length) {
       throw new HttpError(400, "Name und Pylonen erforderlich");
     }
@@ -417,17 +468,10 @@ export function dataRouter(): Router {
       ]);
       if (!owned.rowCount) throw new HttpError(404, "Hindernis nicht gefunden");
       await c.query("UPDATE custom_obstacles SET name = $2 WHERE id = $1", [req.params.id, name.trim()]);
-      await c.query("DELETE FROM custom_obstacle_pylons WHERE custom_obstacle_id = $1", [req.params.id]);
-      for (let i = 0; i < pylons.length; i++) {
-        const p = pylons[i];
-        await c.query(
-          `INSERT INTO custom_obstacle_pylons (custom_obstacle_id, pylon_index, x_m, y_m, lying, angle_deg)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [req.params.id, i, p.x, p.y, !!p.lying, p.angle ?? null],
-        );
-      }
+      await writeCustomData(c, req.params.id, pylons, routes);
     });
-    res.json({ id: req.params.id, name: name.trim(), pylons });
+    const all = await readCustomObstacles(req.auth!.clubId);
+    res.json(all.find((o) => o.id === req.params.id));
   });
 
   r.delete("/custom-obstacles/:id", async (req, res) => {

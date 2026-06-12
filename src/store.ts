@@ -110,12 +110,19 @@ interface AppState {
   loadTrack: (id: string) => void;
   deleteTrack: (id: string) => void;
 
-  addCustomTemplate: (name: string, pylons: Pylon[]) => void;
-  updateCustomTemplate: (id: string, name: string, pylons: Pylon[]) => void;
+  addCustomTemplate: (
+    name: string,
+    pylons: Pylon[],
+    routes?: V2[][],
+    baseTemplateId?: string,
+  ) => void;
+  updateCustomTemplate: (id: string, name: string, pylons: Pylon[], routes?: V2[][]) => void;
   deleteCustomTemplate: (id: string) => void;
-  /** Designer öffnen; id = bestehendes eigenes Hindernis bearbeiten. */
-  openDesigner: (editId: string | null) => void;
+  /** Designer öffnen; editId = eigenes Hindernis, baseId = offizielles anpassen. */
+  openDesigner: (editId: string | null, baseId?: string | null) => void;
   designerEditId: string | null;
+  /** Offizielles Hindernis, das im Designer angepasst wird. */
+  designerBaseId: string | null;
 
   makeAutoRoute: () => void;
   setDrawingRoute: (on: boolean) => void;
@@ -244,6 +251,7 @@ export const useStore = create<AppState>((set, get) => {
     route: null,
     drawingRoute: false,
     designerEditId: null,
+    designerBaseId: null,
     theme: startTheme,
 
     toggleTheme: () => {
@@ -526,12 +534,12 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     makeAutoRoute: () => {
-      const { obstacles, map, rules } = get();
+      const { obstacles, map, rules, customTemplates } = get();
       if (obstacles.length < 2) {
         get().showToast("Mindestens 2 Aufgaben für eine Route nötig");
         return;
       }
-      const route = autoRoute(obstacles, map, rules);
+      const route = autoRoute(obstacles, map, rules, customTemplates);
       if (!route) {
         get().showToast("Route konnte nicht berechnet werden");
         return;
@@ -546,14 +554,14 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     applyDrawnRoute: (raw) => {
-      const { obstacles, rules } = get();
+      const { obstacles, rules, customTemplates } = get();
       const points = smoothDrawnLine(raw);
       if (points.length < 10) {
         set({ drawingRoute: false });
         get().showToast("Linie zu kurz – Route nicht übernommen");
         return;
       }
-      const entries = routeEntries(points, obstacles, rules);
+      const entries = routeEntries(points, obstacles, rules, customTemplates);
       const visited = entries
         .map((e) => obstacles.find((o) => o.id === e.obstacleId))
         .filter((o): o is ObstacleInstance => !!o);
@@ -635,19 +643,25 @@ export const useStore = create<AppState>((set, get) => {
         .catch((e) => get().showToast(errMsg(e)));
     },
 
-    addCustomTemplate: (name, pylons) => {
+    addCustomTemplate: (name, pylons, routes, baseTemplateId) => {
       api
-        .post<CustomTemplate>("/custom-obstacles", { name, pylons })
+        .post<CustomTemplate>("/custom-obstacles", { name, pylons, routes, baseTemplateId })
         .then((tpl) => {
-          set({ customTemplates: [...get().customTemplates, tpl] });
-          get().showToast(`Hindernis „${name}" gespeichert`);
+          // Override ersetzt einen evtl. vorhandenen Override desselben Originals
+          const rest = baseTemplateId
+            ? get().customTemplates.filter((t) => t.baseTemplateId !== baseTemplateId)
+            : get().customTemplates;
+          set({ customTemplates: [...rest, tpl] });
+          get().showToast(
+            baseTemplateId ? `„${name}" überschreibt jetzt das offizielle Hindernis` : `Hindernis „${name}" gespeichert`,
+          );
         })
         .catch((e) => get().showToast(errMsg(e)));
     },
 
-    updateCustomTemplate: (id, name, pylons) => {
+    updateCustomTemplate: (id, name, pylons, routes) => {
       api
-        .put<CustomTemplate>(`/custom-obstacles/${id}`, { name, pylons })
+        .put<CustomTemplate>(`/custom-obstacles/${id}`, { name, pylons, routes })
         .then((tpl) => {
           set({ customTemplates: get().customTemplates.map((t) => (t.id === id ? tpl : t)) });
           get().showToast(`Hindernis „${name}" aktualisiert`);
@@ -655,7 +669,8 @@ export const useStore = create<AppState>((set, get) => {
         .catch((e) => get().showToast(errMsg(e)));
     },
 
-    openDesigner: (editId) => set({ designerEditId: editId, dialog: "designer" }),
+    openDesigner: (editId, baseId = null) =>
+      set({ designerEditId: editId, designerBaseId: baseId, dialog: "designer" }),
 
     deleteCustomTemplate: (id) => {
       api

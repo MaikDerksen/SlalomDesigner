@@ -109,6 +109,14 @@ export interface CustomTemplate {
   id: string;
   name: string;
   pylons: Pylon[];
+  /**
+   * Optionale Fahrlinien-Varianten (lokale Koordinaten). Sind welche
+   * vorhanden, nutzt die KI-Route ausschließlich diese statt eigener
+   * Berechnung – die beste Variante/Richtung wird gewählt.
+   */
+  routes?: V2[][];
+  /** Gesetzt, wenn dieses Hindernis ein offizielles (§7.3) überschreibt. */
+  baseTemplateId?: string;
 }
 
 /**

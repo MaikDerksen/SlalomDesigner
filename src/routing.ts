@@ -1,4 +1,4 @@
-import type { MapConfig, ObstacleInstance, Rules, V2 } from "./types";
+import type { CustomTemplate, MapConfig, ObstacleInstance, Rules, V2 } from "./types";
 import { templateById } from "./templates";
 import { bbox, dist, pointInPolygon, resample, rotatePoint, worldPylons } from "./geometry";
 
@@ -43,32 +43,55 @@ const SAMPLE = 0.35; // m zwischen Routen-Stützpunkten
 
 /* ---------- Fahrlinien der Hindernisse in Weltkoordinaten ---------- */
 
-export function obstaclePath(obs: ObstacleInstance, rules: Rules): V2[] {
-  const tpl = templateById(obs.templateId);
-  let local: V2[];
-  if (tpl) {
-    local = tpl.route(rules);
-  } else {
-    // Eigenes Hindernis: gerade Linie entlang der längeren Bounding-Box-Achse
-    const b = bbox(obs.pylons);
-    const w = b.maxX - b.minX;
-    const h = b.maxY - b.minY;
-    const ext = Math.max(w, h) / 2 + 1.5;
-    local =
-      w >= h
-        ? [
-            { x: -ext, y: 0 },
-            { x: ext, y: 0 },
-          ]
-        : [
-            { x: 0, y: -ext },
-            { x: 0, y: ext },
-          ];
-  }
+function toWorld(local: V2[], obs: ObstacleInstance): V2[] {
   return local.map((p) => {
     const r = rotatePoint(p, obs.rotation);
     return { x: r.x + obs.x, y: r.y + obs.y };
   });
+}
+
+/**
+ * Alle Fahrlinien-Varianten eines Hindernisses (Weltkoordinaten).
+ * Priorität: vom Nutzer gezeichnete Varianten (eigenes Hindernis oder
+ * Override eines offiziellen) > offizielle Vorlagen-Fahrlinie > Fallback
+ * (gerade Linie entlang der längeren Achse).
+ */
+export function obstacleRoutes(
+  obs: ObstacleInstance,
+  rules: Rules,
+  customTemplates: CustomTemplate[] = [],
+): V2[][] {
+  const direct = customTemplates.find((c) => c.id === obs.templateId);
+  const tpl = templateById(obs.templateId);
+  const override = !direct && tpl ? customTemplates.find((c) => c.baseTemplateId === tpl.id) : undefined;
+  const drawn = (direct ?? override)?.routes?.filter((v) => v.length >= 2);
+  if (drawn?.length) return drawn.map((v) => toWorld(v, obs));
+  if (tpl) return [toWorld(tpl.route(rules), obs)];
+  // Eigenes Hindernis ohne gezeichnete Linie: gerade Linie als Annahme
+  const b = bbox(obs.pylons);
+  const w = b.maxX - b.minX;
+  const h = b.maxY - b.minY;
+  const ext = Math.max(w, h) / 2 + 1.5;
+  const local: V2[] =
+    w >= h
+      ? [
+          { x: -ext, y: 0 },
+          { x: ext, y: 0 },
+        ]
+      : [
+          { x: 0, y: -ext },
+          { x: 0, y: ext },
+        ];
+  return [toWorld(local, obs)];
+}
+
+/** Erste/bevorzugte Fahrlinie (für Reihenfolge-Erkennung). */
+export function obstaclePath(
+  obs: ObstacleInstance,
+  rules: Rules,
+  customTemplates: CustomTemplate[] = [],
+): V2[] {
+  return obstacleRoutes(obs, rules, customTemplates)[0];
 }
 
 function norm(v: V2): V2 {
@@ -159,32 +182,35 @@ export function autoRoute(
   obstacles: ObstacleInstance[],
   map: MapConfig,
   rules: Rules,
+  customTemplates: CustomTemplate[] = [],
 ): RouteData | null {
   if (obstacles.length < 2) return null;
 
-  const paths = obstacles.map((o) => resample(obstaclePath(o, rules), SAMPLE));
-  const variants = paths.map((p) => [p, [...p].reverse()]);
+  // Je Hindernis: alle Fahrlinien-Varianten × beide Richtungen
+  const variants: V2[][][] = obstacles.map((o) =>
+    obstacleRoutes(o, rules, customTemplates).flatMap((path) => {
+      const fine = resample(path, SAMPLE);
+      return [fine, [...fine].reverse()];
+    }),
+  );
   // Alle Pylonen-Füße: Verbindungen dürfen nicht hindurchführen
   const allPylons: V2[] = obstacles.flatMap((o) => worldPylons(o));
   const OFFSETS = [0, 2.2, -2.2, 4.5, -4.5];
 
-  // DP über Fahrtrichtung je Hindernis
+  // DP über Varianten-Wahl je Hindernis
   const n = obstacles.length;
-  const cost: number[][] = [
-    [0, 0],
-    ...Array.from({ length: n - 1 }, () => [Infinity, Infinity]),
-  ];
-  const from: number[][] = Array.from({ length: n }, () => [0, 0]);
+  const cost: number[][] = variants.map((v, i) => v.map(() => (i === 0 ? 0 : Infinity)));
+  const from: number[][] = variants.map((v) => v.map(() => 0));
   const conns: V2[][][][] = [];
 
   for (let i = 1; i < n; i++) {
-    conns[i] = [[], []].map(() => [[], []]) as V2[][][];
-    for (let dPrev = 0; dPrev < 2; dPrev++) {
-      const prev = variants[i - 1][dPrev];
+    conns[i] = variants[i - 1].map(() => variants[i].map(() => [] as V2[]));
+    for (let vPrev = 0; vPrev < variants[i - 1].length; vPrev++) {
+      const prev = variants[i - 1][vPrev];
       const e = prev[prev.length - 1];
       const te = tangentAt(prev, "end");
-      for (let dCur = 0; dCur < 2; dCur++) {
-        const cur = variants[i][dCur];
+      for (let vCur = 0; vCur < variants[i].length; vCur++) {
+        const cur = variants[i][vCur];
         const s = cur[0];
         const ts = tangentAt(cur, "start");
         // Mehrere Ausweich-Kurven testen, beste (pylonenfreie) gewinnt
@@ -198,19 +224,23 @@ export function autoRoute(
             bestPts = pts;
           }
         }
-        conns[i][dPrev][dCur] = bestPts;
-        const c = cost[i - 1][dPrev] + bestC;
-        if (c < cost[i][dCur]) {
-          cost[i][dCur] = c;
-          from[i][dCur] = dPrev;
+        conns[i][vPrev][vCur] = bestPts;
+        const c = cost[i - 1][vPrev] + bestC;
+        if (c < cost[i][vCur]) {
+          cost[i][vCur] = c;
+          from[i][vCur] = vPrev;
         }
       }
     }
   }
 
-  // Rückverfolgung der besten Richtungs-Wahl
+  // Rückverfolgung der besten Varianten-Wahl
   const dirs: number[] = new Array(n);
-  dirs[n - 1] = cost[n - 1][0] <= cost[n - 1][1] ? 0 : 1;
+  let best = 0;
+  cost[n - 1].forEach((c, idx) => {
+    if (c < cost[n - 1][best]) best = idx;
+  });
+  dirs[n - 1] = best;
   for (let i = n - 1; i > 0; i--) dirs[i - 1] = from[i][dirs[i]];
 
   const raw: V2[] = [...variants[0][dirs[0]]];
@@ -367,10 +397,11 @@ export function routeEntries(
   points: V2[],
   obstacles: ObstacleInstance[],
   rules: Rules,
+  customTemplates: CustomTemplate[] = [],
 ): RouteEntry[] {
   const entries: RouteEntry[] = [];
   for (const obs of obstacles) {
-    const path = obstaclePath(obs, rules);
+    const path = obstaclePath(obs, rules, customTemplates);
     const mid = path[Math.floor(path.length / 2)];
     const radius = Math.max(2.5, dist(path[0], path[path.length - 1]) / 2 + 1);
     let best = -1;

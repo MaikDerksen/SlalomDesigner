@@ -74,12 +74,16 @@ export function Palette() {
       <div className="palette-head">Hindernisse</div>
       <div className="palette-scroll">
         {TEMPLATES.map((t) => {
-          const pylons = t.build(rules);
+          // Vereins-Override ersetzt das offizielle Hindernis
+          const override = customTemplates.find((c) => c.baseTemplateId === t.id);
+          const pylons = override ? override.pylons : t.build(rules);
           return (
             <div
               key={t.id}
               className="palette-item"
-              onPointerDown={(e) => startDrag(e, "builtin", t.id, pylons)}
+              onPointerDown={(e) =>
+                override ? startDrag(e, "custom", override.id, pylons) : startDrag(e, "builtin", t.id, pylons)
+              }
               onPointerMove={onMove}
               onPointerUp={(e) => drop(e.clientX, e.clientY)}
               onPointerCancel={() => {
@@ -90,8 +94,29 @@ export function Palette() {
               <ObstaclePreview pylons={pylons} base={rules.pylonBase} size={74} />
               <div className="palette-label">
                 <span>{t.name}</span>
-                <small>{t.ref}</small>
+                <small>{override ? `${t.ref} · angepasst` : t.ref}</small>
               </div>
+              <button
+                className="mini-btn"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => (override ? openDesigner(override.id) : openDesigner(null, t.id))}
+                title={override ? "Anpassung bearbeiten" : "Offizielles Hindernis anpassen (Pylonen + Fahrlinien)"}
+              >
+                <Icon name="pencil" size={12} />
+              </button>
+              {override && (
+                <button
+                  className="mini-btn danger"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    if (confirm(`Anpassung von „${t.name}" entfernen und das Original wiederherstellen?`))
+                      deleteCustomTemplate(override.id);
+                  }}
+                  title="Original wiederherstellen"
+                >
+                  <Icon name="undo" size={12} />
+                </button>
+              )}
             </div>
           );
         })}
@@ -102,10 +127,10 @@ export function Palette() {
             <Icon name="plus" size={13} />
           </button>
         </div>
-        {customTemplates.length === 0 && (
+        {customTemplates.filter((t) => !t.baseTemplateId).length === 0 && (
           <div className="palette-empty">Noch keine – mit „+" eigene Hindernisse als Objekt anlegen.</div>
         )}
-        {customTemplates.map((t) => (
+        {customTemplates.filter((t) => !t.baseTemplateId).map((t) => (
           <div
             key={t.id}
             className="palette-item"

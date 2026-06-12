@@ -3,6 +3,7 @@ import type { MapConfig, ObstacleInstance, Rules, V2 } from "../types";
 import type { RouteData } from "../routing";
 import { analyzeRoute, routeEntries } from "../routing";
 import { dist } from "../geometry";
+import { useStore } from "../store";
 
 /**
  * Zeichnet die Strecken-Route:
@@ -27,9 +28,13 @@ export function RouteLayer({
   scale: number;
 }) {
   const pts = route.points;
+  const customTemplates = useStore((s) => s.customTemplates);
 
   const analysis = useMemo(() => analyzeRoute(pts, map, rules, obstacles), [pts, map, rules, obstacles]);
-  const entries = useMemo(() => routeEntries(pts, obstacles, rules), [pts, obstacles, rules]);
+  const entries = useMemo(
+    () => routeEntries(pts, obstacles, rules, customTemplates),
+    [pts, obstacles, rules, customTemplates],
+  );
 
   const d = useMemo(() => "M" + pts.map((p) => `${p.x} ${p.y}`).join(" L"), [pts]);
 

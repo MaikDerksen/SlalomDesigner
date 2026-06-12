@@ -18,8 +18,14 @@ Regelbasis: **Offizielles ADAC Kartslalom Reglement 2026** (§7 Parcoursaufbau, 
   mit verschiebbaren Punkten editierbar (Punkte hinzufügen/löschen). Sperrzonen für Hindernisse
   (Laternen, Inseln …) lassen sich einzeichnen. Die Map wird unter einem Titel gespeichert; beim
   Generieren dient der Screenshot als Hintergrund, Aufgaben landen nur in der Maske und nie in Sperrzonen
-- 🛠 **Eigene Hindernisse** – im Designer Pylonen (stehend/liegend) auf 5-cm-Raster setzen und als
-  wiederverwendbares Objekt in der Palette speichern
+- 🛠 **Eigene Hindernisse** – im Designer Pylonen (stehend/liegend) frei setzen (50-cm-Raster als
+  Orientierung, Live-Abstandsanzeige) und als wiederverwendbares Objekt in der Palette speichern
+- 🧭 **Fahrlinien-Varianten** – im Designer pro Hindernis optional mehrere Fahrlinien zeichnen
+  (Tabs „Linie 1..n"); sind welche vorhanden, nutzt die KI-Route ausschließlich diese und wählt
+  die beste Variante/Richtung statt eigener Berechnung. Auch **offizielle Hindernisse sind
+  anpassbar**: ✎ in der Palette öffnet sie im Designer (Pylonen + offizielle Fahrlinie vorbefüllt),
+  Speichern erzeugt einen Vereins-Override, der das Original in Palette und Generator ersetzt –
+  jederzeit per Reset auf das Original zurücksetzbar
 - ⚙ **Regeln als Variablen** – alle Reglement-Maße (Abstände, Torbreite, Pylonenmaße …) in den
   Einstellungen änderbar, falls sich das Reglement ändert
 - 📖 **Wissensdatenbank** (im Regeln-Dialog) – Schnellübersicht der wichtigsten Reglement-Punkte

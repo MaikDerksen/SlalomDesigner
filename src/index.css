@@ -730,6 +730,27 @@ input:focus {
   font-weight: 600;
 }
 
+.designer-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 2px 0 8px;
+}
+
+.designer-tabs button {
+  padding: 5px 11px;
+  font-size: 12.5px;
+}
+
+.designer-tabs button.on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.designer-canvas.drawing {
+  cursor: crosshair;
+}
+
 .designer-canvas {
   width: 100%;
   max-width: 420px;

@@ -118,6 +118,19 @@ CREATE TABLE IF NOT EXISTS custom_obstacle_pylons (
   PRIMARY KEY (custom_obstacle_id, pylon_index)
 );
 
+-- Überschreibt ein offizielles Hindernis (§7.3-Schlüssel), falls gesetzt
+ALTER TABLE custom_obstacles ADD COLUMN IF NOT EXISTS base_template_id text;
+
+-- Optionale Fahrlinien-Varianten eines eigenen Hindernisses
+CREATE TABLE IF NOT EXISTS custom_obstacle_route_points (
+  custom_obstacle_id uuid NOT NULL REFERENCES custom_obstacles(id) ON DELETE CASCADE,
+  variant_index      integer NOT NULL,
+  point_index        integer NOT NULL,
+  x_m                numeric(7,2) NOT NULL,
+  y_m                numeric(7,2) NOT NULL,
+  PRIMARY KEY (custom_obstacle_id, variant_index, point_index)
+);
+
 -- Strecken; is_draft = automatisch gesicherter Arbeitsstand (einer je Nutzer)
 CREATE TABLE IF NOT EXISTS tracks (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),

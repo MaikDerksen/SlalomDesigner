@@ -13,13 +13,20 @@ export function generateTrack(
   map: MapConfig,
   rules: Rules,
   opts: GeneratorOptions,
-  customTemplates: { id: string; name: string; pylons: Pylon[] }[] = [],
+  customTemplates: { id: string; name: string; pylons: Pylon[]; baseTemplateId?: string }[] = [],
 ): ObstacleInstance[] | null {
+  // Vereins-Overrides ersetzen die offiziellen Vorlagen
+  const withOverride = (tplId: string, fallback: { id: string; name: string; build: (r: Rules) => Pylon[] }) => {
+    const ov = customTemplates.find((c) => c.baseTemplateId === tplId);
+    return ov ? { id: ov.id, name: ov.name, build: () => ov.pylons } : fallback;
+  };
   const pool = [
-    ...TEMPLATES.filter((t) => opts.allowed.includes(t.id) && t.id !== "zielgasse"),
+    ...TEMPLATES.filter((t) => opts.allowed.includes(t.id) && t.id !== "zielgasse").map((t) =>
+      withOverride(t.id, t),
+    ),
     ...customTemplates
-      .filter((t) => opts.allowed.includes(t.id))
-      .map((t) => ({ id: t.id, name: t.name, ref: "custom", build: () => t.pylons })),
+      .filter((t) => opts.allowed.includes(t.id) && !t.baseTemplateId)
+      .map((t) => ({ id: t.id, name: t.name, build: () => t.pylons })),
   ];
   if (!pool.length) return null;
 
@@ -28,8 +35,10 @@ export function generateTrack(
       ? opts.exact
       : opts.min + Math.floor(Math.random() * (opts.max - opts.min + 1));
 
+  const zielTpl = withOverride("zielgasse", TEMPLATES.find((t) => t.id === "zielgasse")!);
+
   for (let attempt = 0; attempt < 30; attempt++) {
-    const placed = tryGenerate(map, rules, pool, count, opts.withZielgasse);
+    const placed = tryGenerate(map, rules, pool, count, opts.withZielgasse, zielTpl);
     if (placed) return placed;
   }
   return null;
@@ -41,6 +50,7 @@ function tryGenerate(
   pool: { id: string; name: string; build: (r: Rules) => Pylon[] }[],
   count: number,
   withZiel: boolean,
+  zielTpl: { id: string; name: string; build: (r: Rules) => Pylon[] },
 ): ObstacleInstance[] | null {
   const placed: ObstacleInstance[] = [];
   const placedPoints: { x: number; y: number }[][] = [];
@@ -53,9 +63,7 @@ function tryGenerate(
     // Die sperrige Zielgasse zuerst auf die leere Fläche setzen;
     // die Kette wird am Ende umgedreht, damit sie die letzte Aufgabe ist.
     const isZiel = withZiel && i === 0;
-    const tpl = isZiel
-      ? TEMPLATES.find((t) => t.id === "zielgasse")!
-      : pool[Math.floor(Math.random() * pool.length)];
+    const tpl = isZiel ? zielTpl : pool[Math.floor(Math.random() * pool.length)];
 
     let ok = false;
     for (let tries = 0; tries < 250 && !ok; tries++) {
