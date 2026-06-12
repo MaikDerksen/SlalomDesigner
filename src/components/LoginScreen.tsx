@@ -34,8 +34,8 @@ export function LoginScreen() {
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit}>
         <div className="brand login-brand">
-          <span className="brand-dot" />
-          <div className="brand-name">Kart Slalom Planner</div>
+          <img src="/icon-192.png" alt="SlalomDesigner" className="brand-icon large" />
+          <div className="brand-name">SlalomDesigner</div>
         </div>
         <p className="hint">Streckenplanung nach ADAC Kartslalom Reglement 2026 – für deinen Verein.</p>
 

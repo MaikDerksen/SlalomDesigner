@@ -43,9 +43,9 @@ export function Toolbar() {
   return (
     <header className="toolbar">
       <div className="brand">
-        <span className="brand-dot" />
+        <img src="/icon-192.png" alt="" className="brand-icon" />
         <div>
-          <div className="brand-name">Kart Slalom Planner</div>
+          <div className="brand-name">SlalomDesigner</div>
           <div className="brand-track">{currentTrackName}</div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-# Kart Slalom Planner
+# SlalomDesigner
 
 Streckenplaner für ADAC Kartslalom-Training – Web, iOS und Android (eine Codebasis).
 Regelbasis: **Offizielles ADAC Kartslalom Reglement 2026** (§7 Parcoursaufbau, §7.3 Parcoursaufgaben).
