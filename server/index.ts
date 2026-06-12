@@ -6,13 +6,14 @@ import { dirname, join } from "node:path";
 import { migrate } from "./db";
 import { authRouter, requireAuth, HttpError } from "./auth";
 import { dataRouter } from "./routes";
-import { seedIfEmpty } from "./seed";
+import { seedIfEmpty, backfillDocuments } from "./seed";
 
 const PORT = Number(process.env.PORT ?? 3001);
 
 async function main() {
   await migrate();
   await seedIfEmpty();
+  await backfillDocuments();
 
   const app = express();
   app.use(express.json({ limit: "25mb" })); // Screenshot-DataURLs

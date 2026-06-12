@@ -30,7 +30,8 @@ export type DialogKind =
   | "wizard"
   | "tracks"
   | "designer"
-  | "save";
+  | "save"
+  | "wiki";
 
 /** Server-Antwortform einer Map (entspricht SavedMap). */
 type MapDetail = SavedMap;

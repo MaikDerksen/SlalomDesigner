@@ -35,6 +35,17 @@ CREATE TABLE IF NOT EXISTS club_rules (
   PRIMARY KEY (club_id, rule_key)
 );
 
+-- Vereins-Dokumente (z. B. das Reglement-PDF der Wissensdatenbank)
+CREATE TABLE IF NOT EXISTS club_documents (
+  club_id     uuid NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+  kind        text NOT NULL,
+  filename    text NOT NULL,
+  data_base64 text NOT NULL,
+  uploaded_at timestamptz NOT NULL DEFAULT now(),
+  uploaded_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  PRIMARY KEY (club_id, kind)
+);
+
 -- Fahrflächen (Rechteck oder aus Screenshot mit Maske)
 CREATE TABLE IF NOT EXISTS maps (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),

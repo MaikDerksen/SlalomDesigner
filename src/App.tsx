@@ -6,6 +6,7 @@ import { Palette } from "./components/Palette";
 import { GeneratorDialog, MapDialog, MapsDialog, SaveDialog, SettingsDialog, TracksDialog } from "./components/Dialogs";
 import { ObstacleDesigner } from "./components/ObstacleDesigner";
 import { MapWizard } from "./components/MapWizard";
+import { WikiDialog } from "./components/WikiDialog";
 import { LoginScreen } from "./components/LoginScreen";
 import { validate } from "./validation";
 import { analyzeRoute } from "./routing";
@@ -108,6 +109,7 @@ export default function App() {
       {dialog === "tracks" && <TracksDialog />}
       {dialog === "save" && <SaveDialog />}
       {dialog === "designer" && <ObstacleDesigner />}
+      {dialog === "wiki" && <WikiDialog />}
 
       {toast && <div className="toast">{toast}</div>}
     </div>

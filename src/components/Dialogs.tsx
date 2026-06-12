@@ -163,6 +163,11 @@ export function SettingsDialog() {
         ))}
       </div>
       <div className="modal-actions">
+        <button onClick={() => setDialog("wiki")} title="Reglement nachschlagen, PDF ansehen/ersetzen">
+          <Icon name="book" />
+          Wissensdatenbank
+        </button>
+        <span style={{ flex: 1 }} />
         <button onClick={() => setDraft({ ...DEFAULT_RULES })}>Reglement-Defaults</button>
         <button className="primary" onClick={apply}>Übernehmen</button>
       </div>

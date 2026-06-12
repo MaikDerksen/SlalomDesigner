@@ -1,8 +1,22 @@
 import type pg from "pg";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
+import { readFileSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { pool, tx } from "./db";
 import { DEFAULT_RULES } from "../src/rules";
+
+const REGLEMENT_PDF = join(dirname(fileURLToPath(import.meta.url)), "assets", "reglement-2026.pdf");
+const REGLEMENT_NAME = "ADAC-Kartslalom-Reglement-2026.pdf";
+
+let pdfCache: string | null | undefined;
+function reglementBase64(): string | null {
+  if (pdfCache === undefined) {
+    pdfCache = existsSync(REGLEMENT_PDF) ? readFileSync(REGLEMENT_PDF).toString("base64") : null;
+  }
+  return pdfCache;
+}
 
 /**
  * Grunddaten für einen neuen Verein: Reglement-Defaults (ADAC 2026) als
@@ -19,6 +33,32 @@ export async function createDefaultClubData(c: pg.PoolClient, clubId: string): P
     "INSERT INTO maps (club_id, name, width_m, height_m) VALUES ($1, 'Trainingsplatz', 60, 40)",
     [clubId],
   );
+  const pdf = reglementBase64();
+  if (pdf) {
+    await c.query(
+      `INSERT INTO club_documents (club_id, kind, filename, data_base64)
+       VALUES ($1, 'reglement', $2, $3) ON CONFLICT DO NOTHING`,
+      [clubId, REGLEMENT_NAME, pdf],
+    );
+  }
+}
+
+/** Bestehende Vereine ohne Reglement-PDF mit dem mitgelieferten befüllen. */
+export async function backfillDocuments(): Promise<void> {
+  const pdf = reglementBase64();
+  if (!pdf) return;
+  const { rows } = await pool.query(
+    `SELECT c.id FROM clubs c
+     LEFT JOIN club_documents d ON d.club_id = c.id AND d.kind = 'reglement'
+     WHERE d.club_id IS NULL`,
+  );
+  for (const row of rows) {
+    await pool.query(
+      "INSERT INTO club_documents (club_id, kind, filename, data_base64) VALUES ($1, 'reglement', $2, $3)",
+      [row.id, REGLEMENT_NAME, pdf],
+    );
+  }
+  if (rows.length) console.log(`Wissensdatenbank: Reglement-PDF für ${rows.length} Verein(e) ergänzt`);
 }
 
 /**

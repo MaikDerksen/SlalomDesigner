@@ -548,6 +548,50 @@ export function dataRouter(): Router {
     res.status(204).end();
   });
 
+  /* Wissensdatenbank: Reglement-PDF des Vereins */
+  r.get("/wiki", async (req, res) => {
+    const { rows } = await pool.query(
+      `SELECT filename, extract(epoch FROM uploaded_at) * 1000 AS "uploadedAt",
+              ceil(length(data_base64) * 0.75)::int AS "sizeBytes"
+       FROM club_documents WHERE club_id = $1 AND kind = 'reglement'`,
+      [req.auth!.clubId],
+    );
+    if (!rows.length) return res.json(null);
+    res.json({ ...rows[0], uploadedAt: Number(rows[0].uploadedAt) });
+  });
+
+  r.get("/wiki/pdf", async (req, res) => {
+    const { rows } = await pool.query(
+      "SELECT filename, data_base64 FROM club_documents WHERE club_id = $1 AND kind = 'reglement'",
+      [req.auth!.clubId],
+    );
+    if (!rows.length) throw new HttpError(404, "Kein Reglement hinterlegt");
+    const buf = Buffer.from(rows[0].data_base64, "base64");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `${req.query.download ? "attachment" : "inline"}; filename="${rows[0].filename.replace(/[^\w.\- ]/g, "")}"`,
+    );
+    res.send(buf);
+  });
+
+  r.put("/wiki/pdf", async (req, res) => {
+    const { filename, data } = req.body ?? {};
+    if (!data || typeof data !== "string") throw new HttpError(400, "PDF-Daten fehlen");
+    // Plausibilitätsprüfung: Base64 eines PDFs beginnt mit "JVBERi" (%PDF)
+    if (!data.startsWith("JVBERi")) throw new HttpError(400, "Datei ist kein PDF");
+    if (data.length > 20 * 1024 * 1024) throw new HttpError(400, "PDF ist zu groß (max. ~15 MB)");
+    await pool.query(
+      `INSERT INTO club_documents (club_id, kind, filename, data_base64, uploaded_at, uploaded_by)
+       VALUES ($1, 'reglement', $2, $3, now(), $4)
+       ON CONFLICT (club_id, kind)
+       DO UPDATE SET filename = EXCLUDED.filename, data_base64 = EXCLUDED.data_base64,
+                     uploaded_at = now(), uploaded_by = EXCLUDED.uploaded_by`,
+      [req.auth!.clubId, (filename || "Reglement.pdf").slice(0, 200), data, req.auth!.userId],
+    );
+    res.status(204).end();
+  });
+
   /* Einmalige Übernahme der bisherigen Browser-Daten (localStorage-Migration) */
   r.post("/import", async (req, res) => {
     const { rules, maps, tracks, customTemplates } = req.body ?? {};

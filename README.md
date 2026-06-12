@@ -22,6 +22,10 @@ Regelbasis: **Offizielles ADAC Kartslalom Reglement 2026** (§7 Parcoursaufbau, 
   wiederverwendbares Objekt in der Palette speichern
 - ⚙ **Regeln als Variablen** – alle Reglement-Maße (Abstände, Torbreite, Pylonenmaße …) in den
   Einstellungen änderbar, falls sich das Reglement ändert
+- 📖 **Wissensdatenbank** (im Regeln-Dialog) – Schnellübersicht der wichtigsten Reglement-Punkte
+  (§7 Aufbau, §7.3 Aufgaben, §9.1 Wertung, Technik) mit den live konfigurierten Werten, das
+  Reglement-PDF je Verein (ansehen, herunterladen, durch neue Version ersetzen – wird beim ersten
+  Start automatisch hinterlegt) und Link zur offiziellen ADAC-Reglement-Seite
 - 📤 **Senden** – erstellt ein PNG des Streckenplans (mit Datum, Maßstab, Legende, Route) und teilt es
   über den System-Share-Dialog (Mobile) bzw. lädt es herunter (Desktop)
 - 🛣 **Strecken-Route** – zwei Wege: „Route" berechnet automatisch die Fahrlinie durch alle Aufgaben
