@@ -30,6 +30,8 @@ services:
       retries: 20
 
   app:
+    # Multi-Platform-Image (amd64, arm64, armv7) – das NAS zieht
+    # automatisch die passende Architektur.
     image: maik05/slalom-designer:latest
     restart: unless-stopped
     environment:

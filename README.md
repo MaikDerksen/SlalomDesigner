@@ -100,12 +100,12 @@ JWT_SECRET=<zufälliger-wert> docker compose up -d   # db + app (API + Frontend)
 ## Deployment auf dem NAS (privates Docker-Hub-Image)
 
 Das Image wird als **privates** Repo `maik05/slalom-designer` auf Docker Hub gepflegt
-(Multi-Stage-Build, Healthcheck auf `/api/health`).
+(Multi-Stage-Build, Healthcheck auf `/api/health`) und ist **multi-platform**
+(linux/amd64, linux/arm64, linux/arm/v7) – läuft also auch auf ARM-NAS.
 
 ```bash
-# Auf der Entwickler-Maschine: neue Version bauen & pushen
-docker build -t maik05/slalom-designer:latest .
-docker push maik05/slalom-designer:latest
+# Auf der Entwickler-Maschine: neue Version für alle Plattformen bauen & pushen
+bash scripts/build_multiarch.sh 1.0.1
 
 # Auf dem NAS (einmalig anmelden, da privates Repo)
 docker login
