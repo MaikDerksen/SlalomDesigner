@@ -891,15 +891,26 @@ input:focus {
   padding: 10px;
 }
 
-/* ---------- Nutzer-MenÃ¼ ---------- */
+/* ---------- Toolbar-Dropdowns ---------- */
 
-.user-menu-wrap {
+.menu-wrap {
   position: relative;
 }
 
-.user-menu {
+.menu-wrap > button.menu-open {
+  background: var(--fill-hover);
+}
+
+.chevron {
+  font-size: 11px;
+  line-height: 0;
+  margin-top: -6px;
+  opacity: 0.55;
+}
+
+.dropdown {
   position: absolute;
-  right: 0;
+  left: 0;
   top: calc(100% + 8px);
   background: var(--glass-strong);
   backdrop-filter: var(--blur);
@@ -908,16 +919,35 @@ input:focus {
   border-radius: 14px;
   box-shadow: var(--shadow);
   animation: modal-in 0.16s ease-out;
-  padding: 8px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 240px;
+  gap: 2px;
+  min-width: 200px;
   z-index: 60;
 }
 
-.user-menu button {
-  text-align: left;
+.dropdown-right {
+  left: auto;
+  right: 0;
+  min-width: 250px;
+}
+
+.dropdown button {
+  justify-content: flex-start;
+  border-radius: 9px;
+  padding: 8px 11px;
+  background: transparent;
+  width: 100%;
+}
+
+.dropdown button:hover {
+  background: var(--fill);
+}
+
+.dropdown button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .user-menu-club {

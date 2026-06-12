@@ -240,7 +240,7 @@ export function MapsDialog() {
   const openWizard = useStore((s) => s.openWizard);
 
   return (
-    <Modal title="Fahrflächen" onClose={() => setDialog(null)}>
+    <Modal title="Trainingsplätze" onClose={() => setDialog(null)}>
       <div className="field-row" style={{ marginBottom: 12 }}>
         <button className="primary" onClick={() => openWizard(null)}>
           <Icon name="image" />

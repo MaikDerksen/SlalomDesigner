@@ -1,13 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "../store";
 import { exportAndShare } from "../export";
 import { Icon } from "./Icons";
+
+type MenuId = "route" | "edit" | "maps" | "user" | null;
 
 export function Toolbar() {
   const setDialog = useStore((s) => s.setDialog);
   const clearTrack = useStore((s) => s.clearTrack);
   const undo = useStore((s) => s.undo);
+  const redo = useStore((s) => s.redo);
   const undoStack = useStore((s) => s.undoStack);
+  const redoStack = useStore((s) => s.redoStack);
   const currentTrackName = useStore((s) => s.currentTrackName);
   const map = useStore((s) => s.map);
   const mapImage = useStore((s) => s.mapImage);
@@ -24,7 +28,17 @@ export function Toolbar() {
   const theme = useStore((s) => s.theme);
   const toggleTheme = useStore((s) => s.toggleTheme);
   const [sharing, setSharing] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<MenuId>(null);
+
+  /* Klick außerhalb schließt das offene Menü */
+  useEffect(() => {
+    if (!openMenu) return;
+    const close = () => setOpenMenu(null);
+    window.addEventListener("pointerdown", close);
+    return () => window.removeEventListener("pointerdown", close);
+  }, [openMenu]);
+
+  const toggleMenu = (id: Exclude<MenuId, null>) => setOpenMenu((m) => (m === id ? null : id));
 
   const onShare = async () => {
     if (!obstacles.length) {
@@ -54,79 +68,159 @@ export function Toolbar() {
           <Icon name="zap" />
           Zufall
         </button>
-        <div className="tb-group" title="Strecken-Route">
-          <button onClick={makeAutoRoute} title="Route automatisch berechnen">
+
+        {/* Route */}
+        <div className="menu-wrap" onPointerDown={(e) => e.stopPropagation()}>
+          <button className={openMenu === "route" || drawingRoute ? "menu-open" : ""} onClick={() => toggleMenu("route")}>
             <Icon name="route" />
             Route
+            <span className="chevron">⌄</span>
           </button>
-          <button
-            onClick={() => setDrawingRoute(!drawingRoute)}
-            className={drawingRoute ? "accent" : ""}
-            title="Fahrlinie von Hand zeichnen – Reihenfolge und Einfahrten werden erkannt"
-          >
-            <Icon name="pencil" />
-            {drawingRoute ? "Zeichnen…" : "Zeichnen"}
-          </button>
-          {route && (
-            <button onClick={clearRoute} title="Route entfernen">
-              <Icon name="eraser" />
-            </button>
+          {openMenu === "route" && (
+            <div className="dropdown">
+              <button
+                onClick={() => {
+                  makeAutoRoute();
+                  setOpenMenu(null);
+                }}
+                title="Route automatisch berechnen"
+              >
+                <Icon name="zap" />
+                KI
+              </button>
+              <button
+                className={drawingRoute ? "active" : ""}
+                onClick={() => {
+                  setDrawingRoute(!drawingRoute);
+                  setOpenMenu(null);
+                }}
+                title="Fahrlinie von Hand zeichnen – Reihenfolge und Einfahrten werden erkannt"
+              >
+                <Icon name="pencil" />
+                {drawingRoute ? "Zeichnen beenden" : "Zeichnen"}
+              </button>
+              {route && (
+                <button
+                  onClick={() => {
+                    clearRoute();
+                    setOpenMenu(null);
+                  }}
+                >
+                  <Icon name="eraser" />
+                  Route löschen
+                </button>
+              )}
+            </div>
           )}
         </div>
-        <div className="tb-group" title="Bearbeiten">
-          <button onClick={undo} disabled={!undoStack.length} title="Rückgängig (Strg+Z)">
-            <Icon name="undo" />
+
+        {/* Edit – bleibt offen für mehrfaches Undo/Redo */}
+        <div className="menu-wrap" onPointerDown={(e) => e.stopPropagation()}>
+          <button className={openMenu === "edit" ? "menu-open" : ""} onClick={() => toggleMenu("edit")}>
+            <Icon name="pencil" />
+            Edit
+            <span className="chevron">⌄</span>
           </button>
-          <button
-            onClick={() => {
-              if (confirm("Strecke wirklich leeren?")) clearTrack();
-            }}
-            title="Strecke leeren"
-          >
-            <Icon name="trash" />
-          </button>
+          {openMenu === "edit" && (
+            <div className="dropdown">
+              <button onClick={undo} disabled={!undoStack.length} title="Strg+Z">
+                <Icon name="undo" />
+                Undo
+              </button>
+              <button onClick={redo} disabled={!redoStack.length} title="Strg+Y">
+                <Icon name="rotateCw" />
+                Redo
+              </button>
+              <button
+                className="danger"
+                onClick={() => {
+                  if (confirm("Strecke wirklich leeren?")) clearTrack();
+                }}
+              >
+                <Icon name="trash" />
+                Delete
+              </button>
+              <button
+                onClick={() => {
+                  setDialog("save");
+                  setOpenMenu(null);
+                }}
+              >
+                <Icon name="save" />
+                Save
+              </button>
+            </div>
+          )}
         </div>
-        <div className="tb-group" title="Bibliothek">
-          <button onClick={() => setDialog("save")}>
-            <Icon name="save" />
-            Speichern
-          </button>
-          <button onClick={() => setDialog("tracks")}>
-            <Icon name="folder" />
-            Strecken
-          </button>
-          <button onClick={() => setDialog("maps")}>
+
+        {/* Maps */}
+        <div className="menu-wrap" onPointerDown={(e) => e.stopPropagation()}>
+          <button className={openMenu === "maps" ? "menu-open" : ""} onClick={() => toggleMenu("maps")}>
             <Icon name="map" />
-            Fläche
+            Maps
+            <span className="chevron">⌄</span>
           </button>
-          <button onClick={() => setDialog("settings")} title="Regeln (ADAC 2026)">
-            <Icon name="settings" />
-          </button>
+          {openMenu === "maps" && (
+            <div className="dropdown">
+              <button
+                onClick={() => {
+                  setDialog("tracks");
+                  setOpenMenu(null);
+                }}
+              >
+                <Icon name="folder" />
+                Strecken
+              </button>
+              <button
+                onClick={() => {
+                  setDialog("maps");
+                  setOpenMenu(null);
+                }}
+              >
+                <Icon name="image" />
+                Trainingsplätze
+              </button>
+            </div>
+          )}
         </div>
-        <button onClick={toggleTheme} title={theme === "dark" ? "Heller Modus" : "Dunkler Modus"}>
-          <Icon name={theme === "dark" ? "sun" : "moon"} />
-        </button>
+
         <button onClick={onShare} disabled={sharing} className="accent">
           <Icon name="share" />
           {sharing ? "…" : "Senden"}
         </button>
+
+        {/* User */}
         {user && (
-          <div className="user-menu-wrap">
-            <button onClick={() => setMenuOpen((o) => !o)} title={user.email}>
+          <div className="menu-wrap" onPointerDown={(e) => e.stopPropagation()}>
+            <button className={openMenu === "user" ? "menu-open" : ""} onClick={() => toggleMenu("user")} title={user.email}>
               <Icon name="user" />
               {user.displayName}
+              <span className="chevron">⌄</span>
             </button>
-            {menuOpen && (
-              <div className="user-menu" onPointerLeave={() => setMenuOpen(false)}>
+            {openMenu === "user" && (
+              <div className="dropdown dropdown-right">
                 <div className="user-menu-club">
                   <strong>{user.clubName}</strong>
                   <small>{user.email}</small>
                 </div>
                 <button
                   onClick={() => {
+                    setDialog("settings");
+                    setOpenMenu(null);
+                  }}
+                >
+                  <Icon name="settings" />
+                  Settings
+                </button>
+                <button onClick={toggleTheme}>
+                  <Icon name={theme === "dark" ? "sun" : "moon"} />
+                  {theme === "dark" ? "Heller Modus" : "Dark Mode"}
+                </button>
+                <button
+                  onClick={() => {
                     navigator.clipboard?.writeText(user.inviteCode);
                     showToast(`Einladungscode kopiert: ${user.inviteCode}`);
-                    setMenuOpen(false);
+                    setOpenMenu(null);
                   }}
                 >
                   <Icon name="link" />
