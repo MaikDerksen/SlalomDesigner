@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useStore } from "../store";
 import { exportAndShare } from "../export";
+import { Icon } from "./Icons";
 
 export function Toolbar() {
   const setDialog = useStore((s) => s.setDialog);
@@ -20,6 +21,8 @@ export function Toolbar() {
   const makeAutoRoute = useStore((s) => s.makeAutoRoute);
   const setDrawingRoute = useStore((s) => s.setDrawingRoute);
   const clearRoute = useStore((s) => s.clearRoute);
+  const theme = useStore((s) => s.theme);
+  const toggleTheme = useStore((s) => s.toggleTheme);
   const [sharing, setSharing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -47,39 +50,71 @@ export function Toolbar() {
         </div>
       </div>
       <div className="toolbar-actions">
-        <button onClick={() => setDialog("generator")} className="primary">⚡ Zufall</button>
+        <button onClick={() => setDialog("generator")} className="primary">
+          <Icon name="zap" />
+          Zufall
+        </button>
         <div className="tb-group" title="Strecken-Route">
-          <button onClick={makeAutoRoute} title="Route automatisch berechnen">🛣 Auto</button>
+          <button onClick={makeAutoRoute} title="Route automatisch berechnen">
+            <Icon name="route" />
+            Route
+          </button>
           <button
             onClick={() => setDrawingRoute(!drawingRoute)}
             className={drawingRoute ? "accent" : ""}
             title="Fahrlinie von Hand zeichnen – Reihenfolge und Einfahrten werden erkannt"
           >
-            ✏ {drawingRoute ? "Zeichnen…" : "Zeichnen"}
+            <Icon name="pencil" />
+            {drawingRoute ? "Zeichnen…" : "Zeichnen"}
           </button>
           {route && (
-            <button onClick={clearRoute} title="Route entfernen">⌫</button>
+            <button onClick={clearRoute} title="Route entfernen">
+              <Icon name="eraser" />
+            </button>
           )}
         </div>
         <div className="tb-group" title="Bearbeiten">
-          <button onClick={undo} disabled={!undoStack.length} title="Rückgängig (Strg+Z)">↩</button>
-          <button onClick={() => { if (confirm("Strecke wirklich leeren?")) clearTrack(); }} title="Strecke leeren">
-            🗑
+          <button onClick={undo} disabled={!undoStack.length} title="Rückgängig (Strg+Z)">
+            <Icon name="undo" />
+          </button>
+          <button
+            onClick={() => {
+              if (confirm("Strecke wirklich leeren?")) clearTrack();
+            }}
+            title="Strecke leeren"
+          >
+            <Icon name="trash" />
           </button>
         </div>
         <div className="tb-group" title="Bibliothek">
-          <button onClick={() => setDialog("save")}>💾 Speichern</button>
-          <button onClick={() => setDialog("tracks")}>📂 Strecken</button>
-          <button onClick={() => setDialog("maps")}>📐 Fläche</button>
-          <button onClick={() => setDialog("settings")}>⚙</button>
+          <button onClick={() => setDialog("save")}>
+            <Icon name="save" />
+            Speichern
+          </button>
+          <button onClick={() => setDialog("tracks")}>
+            <Icon name="folder" />
+            Strecken
+          </button>
+          <button onClick={() => setDialog("maps")}>
+            <Icon name="map" />
+            Fläche
+          </button>
+          <button onClick={() => setDialog("settings")} title="Regeln (ADAC 2026)">
+            <Icon name="settings" />
+          </button>
         </div>
+        <button onClick={toggleTheme} title={theme === "dark" ? "Heller Modus" : "Dunkler Modus"}>
+          <Icon name={theme === "dark" ? "sun" : "moon"} />
+        </button>
         <button onClick={onShare} disabled={sharing} className="accent">
-          {sharing ? "…" : "📤 Senden"}
+          <Icon name="share" />
+          {sharing ? "…" : "Senden"}
         </button>
         {user && (
           <div className="user-menu-wrap">
             <button onClick={() => setMenuOpen((o) => !o)} title={user.email}>
-              👤 {user.displayName}
+              <Icon name="user" />
+              {user.displayName}
             </button>
             {menuOpen && (
               <div className="user-menu" onPointerLeave={() => setMenuOpen(false)}>
@@ -94,9 +129,13 @@ export function Toolbar() {
                     setMenuOpen(false);
                   }}
                 >
-                  🔗 Einladungscode: {user.inviteCode}
+                  <Icon name="link" />
+                  Einladungscode: {user.inviteCode}
                 </button>
-                <button onClick={logout}>⎋ Abmelden</button>
+                <button onClick={logout}>
+                  <Icon name="logout" />
+                  Abmelden
+                </button>
               </div>
             )}
           </div>

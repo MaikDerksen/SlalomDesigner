@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useStore } from "../store";
 import { RULE_FIELDS, DEFAULT_RULES } from "../rules";
 import { TEMPLATES } from "../templates";
+import { Icon } from "./Icons";
 import type { GeneratorOptions, Rules } from "../types";
 
 export function Modal({
@@ -20,7 +21,9 @@ export function Modal({
       <div className={`modal ${wide ? "wide" : ""}`}>
         <div className="modal-head">
           <h2>{title}</h2>
-          <button className="mini-btn" onClick={onClose}>✕</button>
+          <button className="mini-btn" onClick={onClose}>
+            <Icon name="x" size={13} />
+          </button>
         </div>
         <div className="modal-body">{children}</div>
       </div>
@@ -113,7 +116,8 @@ export function GeneratorDialog() {
 
       <div className="modal-actions">
         <button className="primary" onClick={run} disabled={!allowed.length}>
-          ⚡ Generieren
+          <Icon name="zap" />
+          Generieren
         </button>
       </div>
     </Modal>
@@ -234,9 +238,13 @@ export function MapsDialog() {
     <Modal title="Fahrflächen" onClose={() => setDialog(null)}>
       <div className="field-row" style={{ marginBottom: 12 }}>
         <button className="primary" onClick={() => openWizard(null)}>
-          🛰 Aus Screenshot
+          <Icon name="image" />
+          Aus Screenshot
         </button>
-        <button onClick={() => setDialog("map")}>📐 Rechteck-Fläche</button>
+        <button onClick={() => setDialog("map")}>
+          <Icon name="ruler" />
+          Rechteck-Fläche
+        </button>
       </div>
       {!maps.length && (
         <p className="hint">
@@ -248,8 +256,8 @@ export function MapsDialog() {
         {maps.map((m) => (
           <div key={m.id} className={`track-item ${map.mapId === m.id ? "active" : ""}`}>
             <div className="track-info" onClick={() => activateMap(m.id)}>
-              <strong>
-                {m.hasImage ? "🛰 " : "📐 "}
+              <strong className="with-icon">
+                <Icon name={m.hasImage ? "image" : "ruler"} size={13} />
                 {m.name}
                 {map.mapId === m.id && <span className="badge-active"> aktiv</span>}
               </strong>
@@ -261,7 +269,9 @@ export function MapsDialog() {
             </div>
             <button className="primary" onClick={() => activateMap(m.id)}>Wählen</button>
             {m.hasImage && (
-              <button className="mini-btn" onClick={() => openWizard(m.id)} title="Bearbeiten">✎</button>
+              <button className="mini-btn" onClick={() => openWizard(m.id)} title="Bearbeiten">
+                <Icon name="pencil" size={12} />
+              </button>
             )}
             <button
               className="mini-btn danger"
@@ -270,7 +280,7 @@ export function MapsDialog() {
                   deleteMap(m.id);
               }}
             >
-              ✕
+              <Icon name="x" size={12} />
             </button>
           </div>
         ))}
@@ -301,7 +311,8 @@ export function SaveDialog() {
             setDialog(null);
           }}
         >
-          💾 Speichern
+          <Icon name="save" />
+          Speichern
         </button>
       </div>
     </Modal>
@@ -338,7 +349,7 @@ export function TracksDialog() {
                   if (confirm(`„${t.name}" löschen?`)) deleteTrack(t.id);
                 }}
               >
-                ✕
+                <Icon name="x" size={12} />
               </button>
             </div>
           ))}

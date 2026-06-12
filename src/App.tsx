@@ -81,25 +81,21 @@ export default function App() {
       </main>
 
       <footer className="statusbar">
-        <span>{obstacles.length} Aufgaben</span>
-        <span>
-          {map.name}: {fmt(map.width)} × {fmt(map.height)} m
+        <span className="status-pill">{obstacles.length} Aufgaben</span>
+        <span className="status-pill">
+          {map.name} · {fmt(map.width)} × {fmt(map.height)} m
         </span>
         {issues.tooClose > 0 && (
-          <span className="status-bad">⚠ {issues.tooClose}× Abstand &lt; {fmt(rules.minTaskGap)} m</span>
+          <span className="status-pill bad">{issues.tooClose}× Abstand &lt; {fmt(rules.minTaskGap)} m</span>
         )}
-        {issues.out > 0 && <span className="status-bad">⚠ {issues.out}× außerhalb der Fläche</span>}
+        {issues.out > 0 && <span className="status-pill bad">{issues.out}× außerhalb der Fläche</span>}
         {issues.tooClose === 0 && issues.out === 0 && obstacles.length > 0 && (
-          <span className="status-ok">✓ regelkonform (§7.2)</span>
+          <span className="status-pill ok">Regelkonform (§7.2)</span>
         )}
         {routeInfo && (
-          <span>
-            Route: {routeInfo.len.toFixed(0)} m
-            {routeInfo.warnings > 0 ? (
-              <span className="status-bad"> · ⚠ {routeInfo.warnings} kritische Stellen</span>
-            ) : (
-              <span className="status-ok"> · ✓ fahrbar</span>
-            )}
+          <span className={`status-pill ${routeInfo.warnings > 0 ? "bad" : "ok"}`}>
+            Route {routeInfo.len.toFixed(0)} m
+            {routeInfo.warnings > 0 ? ` · ${routeInfo.warnings} kritische Stellen` : " · fahrbar"}
           </span>
         )}
       </footer>

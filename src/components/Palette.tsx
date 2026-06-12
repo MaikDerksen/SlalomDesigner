@@ -3,6 +3,7 @@ import { TEMPLATES } from "../templates";
 import { useStore } from "../store";
 import { ObstaclePreview } from "./ObstacleGfx";
 import { canvasBridge, safeCapture } from "../canvasBridge";
+import { Icon } from "./Icons";
 import type { Pylon } from "../types";
 
 /**
@@ -98,7 +99,7 @@ export function Palette() {
         <div className="palette-section">
           Eigene Hindernisse
           <button className="mini-btn" onClick={() => openDesigner(null)} title="Neues Hindernis entwerfen">
-            +
+            <Icon name="plus" size={13} />
           </button>
         </div>
         {customTemplates.length === 0 && (
@@ -127,7 +128,7 @@ export function Palette() {
               onClick={() => openDesigner(t.id)}
               title="Bearbeiten"
             >
-              ✎
+              <Icon name="pencil" size={12} />
             </button>
             <button
               className="mini-btn danger"
@@ -135,7 +136,7 @@ export function Palette() {
               onClick={() => deleteCustomTemplate(t.id)}
               title="Vorlage löschen"
             >
-              ✕
+              <Icon name="x" size={12} />
             </button>
           </div>
         ))}

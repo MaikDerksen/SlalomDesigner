@@ -119,8 +119,32 @@ interface AppState {
   applyDrawnRoute: (raw: V2[]) => void;
   clearRoute: () => void;
 
+  theme: "light" | "dark";
+  toggleTheme: () => void;
+
   showToast: (msg: string) => void;
 }
+
+/**
+ * Theme ist eine Geräte-Einstellung (kein Vereinsdatum) – sie folgt dem
+ * System und wird nur bei manueller Wahl lokal gemerkt.
+ */
+function initialTheme(): "light" | "dark" {
+  try {
+    const saved = localStorage.getItem("ksp.theme");
+    if (saved === "light" || saved === "dark") return saved;
+  } catch {
+    // privater Modus
+  }
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(theme: "light" | "dark") {
+  document.documentElement.dataset.theme = theme;
+}
+
+const startTheme = initialTheme();
+applyTheme(startTheme);
 
 /* Entwurf (Arbeitsstand) verzögert zum Server schreiben */
 let draftTimer: ReturnType<typeof setTimeout> | null = null;
@@ -216,6 +240,18 @@ export const useStore = create<AppState>((set, get) => {
     route: null,
     drawingRoute: false,
     designerEditId: null,
+    theme: startTheme,
+
+    toggleTheme: () => {
+      const theme = get().theme === "dark" ? "light" : "dark";
+      applyTheme(theme);
+      try {
+        localStorage.setItem("ksp.theme", theme);
+      } catch {
+        // privater Modus – Theme gilt dann nur für die Sitzung
+      }
+      set({ theme });
+    },
 
     init: async () => {
       try {

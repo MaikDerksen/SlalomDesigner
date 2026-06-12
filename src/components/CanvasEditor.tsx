@@ -4,6 +4,7 @@ import { bbox, closestPair, rotatePoint, worldPylons } from "../geometry";
 import { validate } from "../validation";
 import { PylonShape } from "./ObstacleGfx";
 import { RouteLayer } from "./RouteLayer";
+import { Icon } from "./Icons";
 import { canvasBridge, safeCapture } from "../canvasBridge";
 import type { ObstacleInstance, V2 } from "../types";
 
@@ -456,10 +457,18 @@ export function CanvasEditor() {
       {selected && (
         <div className="selection-bar">
           <span className="sel-name">{selected.name}</span>
-          <button onClick={() => rotateObstacle(selected.id, selected.rotation - 15)} title="15° links drehen">⟲</button>
-          <button onClick={() => rotateObstacle(selected.id, selected.rotation + 15)} title="15° rechts drehen">⟳</button>
-          <button onClick={() => duplicateObstacle(selected.id)} title="Duplizieren">⧉</button>
-          <button className="danger" onClick={() => deleteObstacle(selected.id)} title="Löschen">✕</button>
+          <button onClick={() => rotateObstacle(selected.id, selected.rotation - 15)} title="15° links drehen">
+            <Icon name="rotateCcw" />
+          </button>
+          <button onClick={() => rotateObstacle(selected.id, selected.rotation + 15)} title="15° rechts drehen">
+            <Icon name="rotateCw" />
+          </button>
+          <button onClick={() => duplicateObstacle(selected.id)} title="Duplizieren">
+            <Icon name="copy" />
+          </button>
+          <button className="danger" onClick={() => deleteObstacle(selected.id)} title="Löschen">
+            <Icon name="x" />
+          </button>
         </div>
       )}
     </div>

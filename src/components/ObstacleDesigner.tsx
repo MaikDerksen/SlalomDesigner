@@ -4,6 +4,7 @@ import { Modal } from "./Dialogs";
 import { PylonShape } from "./ObstacleGfx";
 import { centerPylons, dist } from "../geometry";
 import { safeCapture } from "../canvasBridge";
+import { Icon } from "./Icons";
 import type { Pylon } from "../types";
 
 const SIZE = 12; // bearbeitbare Fläche in Metern (12 × 12)
@@ -111,13 +112,16 @@ export function ObstacleDesigner() {
         </label>
         <div className="tool-group">
           <button className={tool === "standing" ? "on" : ""} onClick={() => setTool("standing")}>
-            ▲ Stehend
+            <Icon name="pylon" />
+            Stehend
           </button>
           <button className={tool === "lying" ? "on" : ""} onClick={() => setTool("lying")}>
-            ▶ Liegend
+            <Icon name="pylonLying" />
+            Liegend
           </button>
           <button className={tool === "erase" ? "on" : ""} onClick={() => setTool("erase")}>
-            ⌫ Löschen
+            <Icon name="eraser" />
+            Löschen
           </button>
         </div>
       </div>
@@ -194,7 +198,8 @@ export function ObstacleDesigner() {
         <span className="hint">{pylons.length} Pylonen</span>
         <button onClick={() => { setPylons([]); setActiveIdx(null); }}>Leeren</button>
         <button className="primary" onClick={save} disabled={!pylons.length}>
-          {editing ? "💾 Aktualisieren" : "💾 Als Objekt speichern"}
+          <Icon name="save" />
+          {editing ? "Aktualisieren" : "Als Objekt speichern"}
         </button>
       </div>
     </Modal>

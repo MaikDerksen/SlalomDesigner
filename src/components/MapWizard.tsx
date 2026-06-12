@@ -4,6 +4,7 @@ import { Modal } from "./Dialogs";
 import { PolygonEditor } from "./PolygonEditor";
 import { dist } from "../geometry";
 import { safeCapture } from "../canvasBridge";
+import { Icon } from "./Icons";
 import { fileToMapImage, floodMask, closeMask, measureObject, toProcImage, traceContour } from "../imageProc";
 import type { MapImage, SavedMap, V2 } from "../types";
 
@@ -217,10 +218,12 @@ export function MapWizard() {
             <div className="wizard-controls">
               <div className="tool-group">
                 <button className={calMode === "auto" ? "on" : ""} onClick={() => setCalMode("auto")}>
-                  🚗 Objekt antippen
+                  <Icon name="crosshair" />
+                  Objekt antippen
                 </button>
                 <button className={calMode === "manual" ? "on" : ""} onClick={() => setCalMode("manual")}>
-                  📏 Linie ziehen
+                  <Icon name="ruler" />
+                  Linie ziehen
                 </button>
               </div>
               <label className="inline">
@@ -295,12 +298,16 @@ export function MapWizard() {
                 Markiere Bereiche, die wegen Hindernissen (Laternen, Inseln, Container …) gesperrt sind.
               </span>
               {!draft ? (
-                <button className="primary" onClick={() => setDraft([])}>⬛ Neue Sperrzone</button>
+                <button className="primary" onClick={() => setDraft([])}>
+                  <Icon name="ban" />
+                  Neue Sperrzone
+                </button>
               ) : (
                 <>
                   <span className="hint">{draft.length} Punkte gesetzt – tippe auf die Karte</span>
                   <button className="primary" onClick={finishZone} disabled={draft.length < 3}>
-                    ✓ Zone schließen
+                    <Icon name="check" />
+                    Zone schließen
                   </button>
                   <button onClick={() => setDraft(null)}>Abbrechen</button>
                 </>
@@ -348,7 +355,8 @@ export function MapWizard() {
           </button>
         ) : (
           <button className="primary" onClick={save} disabled={!title.trim()}>
-            💾 Map speichern
+            <Icon name="save" />
+            Map speichern
           </button>
         )}
       </div>
@@ -497,8 +505,8 @@ function WizardCanvas({
               onClick={() => onBlockedChange(blocked.filter((_, k) => k !== zi))}
             >
               <circle r={hr * 1.3} fill="var(--danger)" />
-              <text textAnchor="middle" dominantBaseline="central" fontSize={hr * 1.5} fill="#fff" pointerEvents="none">
-                🗑
+              <text textAnchor="middle" dominantBaseline="central" fontSize={hr * 1.8} fill="#fff" pointerEvents="none">
+                ×
               </text>
             </g>
           )}
