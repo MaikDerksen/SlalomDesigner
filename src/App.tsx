@@ -15,7 +15,6 @@ export default function App() {
   const dialog = useStore((s) => s.dialog);
   const toast = useStore((s) => s.toast);
   const undo = useStore((s) => s.undo);
-  const redo = useStore((s) => s.redo);
   const obstacles = useStore((s) => s.obstacles);
   const map = useStore((s) => s.map);
   const rules = useStore((s) => s.rules);
@@ -30,22 +29,14 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
-      const key = e.key.toLowerCase();
-      if (key === "z" && e.shiftKey) {
-        e.preventDefault();
-        redo();
-      } else if (key === "z") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
         e.preventDefault();
         undo();
-      } else if (key === "y") {
-        e.preventDefault();
-        redo();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo]);
+  }, [undo]);
 
   const issues = useMemo(() => {
     const flags = validate(obstacles, map, rules);

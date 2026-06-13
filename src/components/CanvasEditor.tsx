@@ -36,6 +36,7 @@ export function CanvasEditor() {
   const route = useStore((s) => s.route);
   const drawingRoute = useStore((s) => s.drawingRoute);
   const applyDrawnRoute = useStore((s) => s.applyDrawnRoute);
+  const showBare = useStore((s) => s.showBare);
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -296,7 +297,7 @@ export function CanvasEditor() {
                 d={`M-2 -2 H${map.width + 2} V${map.height + 2} H-2 Z M${map.boundary
                   .map((p) => `${p.x} ${p.y}`)
                   .join(" L")} Z`}
-                fill="rgba(22,24,29,0.42)"
+                fill="var(--mask-dim)"
                 fillRule="evenodd"
                 pointerEvents="none"
               />
@@ -368,8 +369,8 @@ export function CanvasEditor() {
             {fmt(map.height)} m
           </text>
 
-          {/* Strecken-Route */}
-          {route && route.points.length > 3 && (
+          {/* Strecken-Route (im Peek-Modus ausgeblendet) */}
+          {!showBare && route && route.points.length > 3 && (
             <RouteLayer route={route} obstacles={obstacles} map={map} rules={rules} scale={view.scale} />
           )}
 
@@ -387,7 +388,7 @@ export function CanvasEditor() {
           )}
 
           {/* Abstandslinie beim Ziehen */}
-          {distLine && (
+          {!showBare && distLine && (
             <g>
               <line
                 x1={distLine.p.x}
@@ -416,18 +417,30 @@ export function CanvasEditor() {
             const f = flags.get(obs.id);
             const invalid = !!(f && (f.tooClose || f.outOfBounds));
             const isolated = !!f?.isolated && !invalid;
+            // Lokale Bounding-Box der Pylonen → großzügige, zusammenhängende Trefffläche
+            const lb = bbox(obs.pylons);
+            const pad = Math.max(0.6, rules.pylonBase + 0.4);
+            const wbox = worldCache.get(obs.id)!;
+            const wb = bbox(wbox);
             return (
               <g key={obs.id} data-obs={obs.id} style={{ cursor: "grab" }}>
                 <g transform={`translate(${obs.x} ${obs.y}) rotate(${obs.rotation})`}>
-                  {/* unsichtbare Trefffläche je Pylone */}
-                  {obs.pylons.map((p, i) => (
-                    <circle key={`hit${i}`} cx={p.x} cy={p.y} r={Math.max(0.35, rules.pylonBase)} fill="transparent" />
-                  ))}
+                  {/* Eine durchgehende, unsichtbare Trefffläche über das ganze Hindernis */}
+                  <rect
+                    x={lb.minX - pad}
+                    y={lb.minY - pad}
+                    width={lb.maxX - lb.minX + 2 * pad}
+                    height={lb.maxY - lb.minY + 2 * pad}
+                    fill="transparent"
+                    rx={pad}
+                  />
                   {obs.pylons.map((p, i) => (
                     <PylonShape key={i} p={p} base={rules.pylonBase} invalid={invalid} />
                   ))}
                 </g>
-                <Badge obs={obs} idx={idx} invalid={invalid} isolated={isolated} scale={view.scale} />
+                {!showBare && (
+                  <Badge box={wb} idx={idx} invalid={invalid} isolated={isolated} scale={view.scale} />
+                )}
               </g>
             );
           })}
@@ -476,30 +489,45 @@ export function CanvasEditor() {
 }
 
 function Badge({
-  obs,
+  box,
   idx,
   invalid,
   isolated,
   scale,
 }: {
-  obs: ObstacleInstance;
+  box: { minX: number; minY: number; maxX: number; maxY: number };
   idx: number;
   invalid: boolean;
   isolated: boolean;
   scale: number;
 }) {
-  const r = Math.max(0.28, 13 / scale);
-  const fill = invalid ? "var(--danger)" : isolated ? "var(--warn)" : "var(--ink)";
+  const r = Math.max(0.32, 13 / scale);
+  // Badge sitzt an der oberen rechten Ecke der Aufgabe, knapp außerhalb,
+  // mit dünnem Anker zur Hindernismitte – verdeckt so weder Pylonen noch Fahrlinie.
+  const cx = box.maxX + r * 1.1;
+  const cy = box.minY - r * 1.1;
+  const anchorX = (box.minX + box.maxX) / 2;
+  const anchorY = (box.minY + box.maxY) / 2;
+  const fill = invalid ? "var(--danger)" : isolated ? "var(--warn)" : "var(--badge)";
   return (
     <g pointerEvents="none">
-      <circle cx={obs.x} cy={obs.y} r={r} fill={fill} opacity={0.92} />
+      <line
+        x1={anchorX}
+        y1={anchorY}
+        x2={cx}
+        y2={cy}
+        stroke={fill}
+        strokeWidth={1.4 / scale}
+        opacity={0.5}
+      />
+      <circle cx={cx} cy={cy} r={r} fill={fill} stroke="#fff" strokeWidth={1.4 / scale} />
       <text
-        x={obs.x}
-        y={obs.y}
+        x={cx}
+        y={cy}
         textAnchor="middle"
         dominantBaseline="central"
-        fontSize={r * 1.1}
-        fontWeight={600}
+        fontSize={r * 1.15}
+        fontWeight={700}
         fill="#fff"
       >
         {idx + 1}

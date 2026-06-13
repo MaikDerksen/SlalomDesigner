@@ -9,9 +9,8 @@ export function Toolbar() {
   const setDialog = useStore((s) => s.setDialog);
   const clearTrack = useStore((s) => s.clearTrack);
   const undo = useStore((s) => s.undo);
-  const redo = useStore((s) => s.redo);
   const undoStack = useStore((s) => s.undoStack);
-  const redoStack = useStore((s) => s.redoStack);
+  const setShowBare = useStore((s) => s.setShowBare);
   const currentTrackName = useStore((s) => s.currentTrackName);
   const map = useStore((s) => s.map);
   const mapImage = useStore((s) => s.mapImage);
@@ -127,10 +126,6 @@ export function Toolbar() {
                 <Icon name="undo" />
                 Undo
               </button>
-              <button onClick={redo} disabled={!redoStack.length} title="Strg+Y">
-                <Icon name="rotateCw" />
-                Redo
-              </button>
               <button
                 className="danger"
                 onClick={() => {
@@ -183,6 +178,22 @@ export function Toolbar() {
             </div>
           )}
         </div>
+
+        {/* Halten zum Peek: blendet Nummern + Route aus → nackte Hindernisse */}
+        <button
+          className="peek-btn"
+          title="Gedrückt halten: nur die Hindernisse anzeigen (Nummern & Route ausblenden)"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            setShowBare(true);
+          }}
+          onPointerUp={() => setShowBare(false)}
+          onPointerLeave={() => setShowBare(false)}
+          onPointerCancel={() => setShowBare(false)}
+        >
+          <Icon name="eye" />
+          Ansicht
+        </button>
 
         <button onClick={onShare} disabled={sharing} className="accent">
           <Icon name="share" />

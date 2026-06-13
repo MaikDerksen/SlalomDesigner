@@ -65,12 +65,13 @@ interface AppState {
   dialog: DialogKind;
   dragTemplate: { templateId: string; name: string; pylons: Pylon[] } | null;
   undoStack: ObstacleInstance[][];
-  redoStack: ObstacleInstance[][];
   toast: string | null;
   /** Eingezeichnete oder automatisch erzeugte Strecken-Route. */
   route: RouteData | null;
   /** Zeichenmodus für die Route aktiv? */
   drawingRoute: boolean;
+  /** Nummern + Route ausblenden, um die nackten Hindernisse zu sehen (Halten zum Peek). */
+  showBare: boolean;
 
   init: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -102,7 +103,7 @@ interface AppState {
   clearTrack: () => void;
   pushUndo: () => void;
   undo: () => void;
-  redo: () => void;
+  setShowBare: (on: boolean) => void;
 
   generate: (opts: GeneratorOptions) => boolean;
 
@@ -246,10 +247,10 @@ export const useStore = create<AppState>((set, get) => {
     dialog: null,
     dragTemplate: null,
     undoStack: [],
-    redoStack: [],
     toast: null,
     route: null,
     drawingRoute: false,
+    showBare: false,
     designerEditId: null,
     designerBaseId: null,
     theme: startTheme,
@@ -319,14 +320,16 @@ export const useStore = create<AppState>((set, get) => {
         currentTrackId: null,
         currentTrackName: "Neue Strecke",
         undoStack: [],
-        redoStack: [],
         dialog: null,
         route: null,
         drawingRoute: false,
+        showBare: false,
       });
     },
 
     setDialog: (d) => set({ dialog: d }),
+
+    setShowBare: (on) => set({ showBare: on }),
 
     setRules: (r) => {
       set({ rules: r });
@@ -414,29 +417,15 @@ export const useStore = create<AppState>((set, get) => {
 
     pushUndo: () => {
       const { obstacles, undoStack } = get();
-      // Neue Aktion macht den Redo-Verlauf ungültig
-      set({ undoStack: [...undoStack.slice(-49), obstacles], redoStack: [] });
+      set({ undoStack: [...undoStack.slice(-49), obstacles] });
     },
 
     undo: () => {
-      const { undoStack, redoStack, obstacles } = get();
+      const { undoStack } = get();
       if (!undoStack.length) return;
       set({
         undoStack: undoStack.slice(0, -1),
-        redoStack: [...redoStack.slice(-49), obstacles],
         obstacles: undoStack[undoStack.length - 1],
-        selectedId: null,
-      });
-      scheduleDraftSave();
-    },
-
-    redo: () => {
-      const { undoStack, redoStack, obstacles } = get();
-      if (!redoStack.length) return;
-      set({
-        redoStack: redoStack.slice(0, -1),
-        undoStack: [...undoStack.slice(-49), obstacles],
-        obstacles: redoStack[redoStack.length - 1],
         selectedId: null,
       });
       scheduleDraftSave();
@@ -623,7 +612,6 @@ export const useStore = create<AppState>((set, get) => {
             selectedId: null,
             dialog: null,
             undoStack: [],
-            redoStack: [],
             route: t.route ?? null,
           });
           scheduleDraftSave();

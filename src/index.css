@@ -17,6 +17,12 @@
   --pylon: #ff9500;
   --route: #0a84ff;
   --route-entry: #0040dd;
+  /* Marker/Badge: in BEIDEN Themes dunkel (trägt weißen Text) – nicht an --ink koppeln */
+  --badge: #1d1d1f;
+  --route-casing: #ffffff;
+  --route-halo: rgba(0, 0, 0, 0.3);
+  /* Abdunkeln außerhalb der Fahrfläche (theme-abhängig) */
+  --mask-dim: rgba(22, 24, 29, 0.42);
   --asphalt: #e4e4e9;
   --asphalt-border: #aeaeb5;
   --grid: #cdcdd4;
@@ -46,8 +52,14 @@
   --warn: #ff9f0a;
   --ok: #30d158;
   --pylon: #ff9f0a;
-  --route: #64d2ff;
-  --route-entry: #0a84ff;
+  --route: #3aa0ff;
+  --route-entry: #64d2ff;
+  /* Badge bleibt dunkel; auf hellen Satellitenkacheln + dunklem Canvas gut lesbar */
+  --badge: #0b0b0d;
+  --route-casing: #ffffff;
+  --route-halo: rgba(0, 0, 0, 0.45);
+  /* Heller Schleier hebt den Außenbereich auf dunklem Canvas ab */
+  --mask-dim: rgba(0, 0, 0, 0.5);
   --asphalt: #2c2c2e;
   --asphalt-border: #48484a;
   --grid: #3a3a3c;
@@ -254,6 +266,30 @@ button.danger,
   cursor: crosshair;
 }
 
+/* Sanfter Richtungsfluss auf der Route (Meter-Einheiten skalieren mit dem Zoom) */
+.route-flow {
+  animation: route-flow 1.6s linear infinite;
+}
+
+@keyframes route-flow {
+  to {
+    stroke-dashoffset: -6.2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-flow {
+    animation: none;
+    opacity: 0 !important;
+  }
+}
+
+.peek-btn:active,
+.peek-btn.peeking {
+  background: var(--accent);
+  color: #fff;
+}
+
 .selection-bar {
   position: absolute;
   left: 50%;
@@ -378,11 +414,35 @@ button.danger,
 
 .drag-ghost {
   position: fixed;
-  z-index: 50;
+  z-index: 300;
   pointer-events: none;
-  transform: translate(-50%, -50%);
-  opacity: 0.85;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.25));
+  transform: translate(-50%, -50%) scale(1.04);
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.3));
+}
+
+.drag-ghost-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 10px 6px;
+  background: var(--glass-strong);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+}
+
+.drag-ghost-card svg {
+  background: var(--fill);
+  border-radius: 8px;
+}
+
+.drag-ghost-card span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
 }
 
 /* ---------- Statusleiste ---------- */
@@ -602,7 +662,7 @@ input:focus {
 .chip.on {
   background: var(--accent-soft);
   color: var(--accent);
-  border-color: #cdddfd;
+  border-color: var(--accent);
   font-weight: 600;
 }
 
@@ -783,7 +843,7 @@ input:focus {
 }
 
 .wstep.on {
-  background: var(--ink);
+  background: var(--accent);
   color: #fff;
 }
 
@@ -1096,8 +1156,8 @@ input:focus {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--ink);
-  color: #fff;
+  background: var(--text);
+  color: var(--bg);
   font-size: 13.5px;
   padding: 10px 18px;
   border-radius: 999px;

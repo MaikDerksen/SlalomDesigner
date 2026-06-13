@@ -8,6 +8,8 @@
     "server": "tsx watch server/index.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:up": "docker compose up -d db",
     "cap:add:android": "npx cap add android",
     "cap:add:ios": "npx cap add ios",
@@ -17,6 +19,8 @@
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
     "express": "^5.0.1",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
     "react": "^18.3.1",
@@ -35,6 +39,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
   }
 }

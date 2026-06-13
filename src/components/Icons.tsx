@@ -4,6 +4,12 @@
  */
 const PATHS: Record<string, React.ReactNode> = {
   zap: <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />,
+  eye: (
+    <>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
   route: (
     <>
       <circle cx="6" cy="19" r="3" />

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { TEMPLATES } from "../templates";
 import { useStore } from "../store";
 import { ObstaclePreview } from "./ObstacleGfx";
@@ -19,11 +20,12 @@ export function Palette() {
   const deleteCustomTemplate = useStore((s) => s.deleteCustomTemplate);
   const openDesigner = useStore((s) => s.openDesigner);
 
-  const [ghost, setGhost] = useState<{ x: number; y: number; pylons: Pylon[] } | null>(null);
+  const [ghost, setGhost] = useState<{ x: number; y: number; pylons: Pylon[]; name: string } | null>(null);
   const dragInfo = useRef<{
     kind: "builtin" | "custom";
     id: string;
     pylons: Pylon[];
+    name: string;
     startX: number;
     startY: number;
     moved: boolean;
@@ -34,17 +36,18 @@ export function Palette() {
     kind: "builtin" | "custom",
     id: string,
     pylons: Pylon[],
+    name: string,
   ) => {
     e.preventDefault();
     safeCapture(e.currentTarget as Element, e.pointerId);
-    dragInfo.current = { kind, id, pylons, startX: e.clientX, startY: e.clientY, moved: false };
+    dragInfo.current = { kind, id, pylons, name, startX: e.clientX, startY: e.clientY, moved: false };
   };
 
   const onMove = (e: React.PointerEvent) => {
     const d = dragInfo.current;
     if (!d) return;
-    if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > 6) d.moved = true;
-    if (d.moved) setGhost({ x: e.clientX, y: e.clientY, pylons: d.pylons });
+    if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > 4) d.moved = true;
+    if (d.moved) setGhost({ x: e.clientX, y: e.clientY, pylons: d.pylons, name: d.name });
   };
 
   const drop = (clientX: number, clientY: number) => {
@@ -82,7 +85,9 @@ export function Palette() {
               key={t.id}
               className="palette-item"
               onPointerDown={(e) =>
-                override ? startDrag(e, "custom", override.id, pylons) : startDrag(e, "builtin", t.id, pylons)
+                override
+                  ? startDrag(e, "custom", override.id, pylons, t.name)
+                  : startDrag(e, "builtin", t.id, pylons, t.name)
               }
               onPointerMove={onMove}
               onPointerUp={(e) => drop(e.clientX, e.clientY)}
@@ -134,7 +139,7 @@ export function Palette() {
           <div
             key={t.id}
             className="palette-item"
-            onPointerDown={(e) => startDrag(e, "custom", t.id, t.pylons)}
+            onPointerDown={(e) => startDrag(e, "custom", t.id, t.pylons, t.name)}
             onPointerMove={onMove}
             onPointerUp={(e) => drop(e.clientX, e.clientY)}
             onPointerCancel={() => {
@@ -167,12 +172,18 @@ export function Palette() {
         ))}
       </div>
 
-      {/* Drag-Geist folgt dem Zeiger */}
-      {ghost && (
-        <div className="drag-ghost" style={{ left: ghost.x, top: ghost.y }}>
-          <ObstaclePreview pylons={ghost.pylons} base={0.28} size={70} />
-        </div>
-      )}
+      {/* Drag-Geist folgt dem Zeiger – per Portal an <body>, damit position:fixed
+          nicht vom backdrop-filter der Palette als Containing-Block gekapert wird */}
+      {ghost &&
+        createPortal(
+          <div className="drag-ghost" style={{ left: ghost.x, top: ghost.y }}>
+            <div className="drag-ghost-card">
+              <ObstaclePreview pylons={ghost.pylons} base={0.28} size={64} />
+              <span>{ghost.name}</span>
+            </div>
+          </div>,
+          document.body,
+        )}
     </aside>
   );
 }
