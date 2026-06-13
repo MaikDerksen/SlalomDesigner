@@ -76,10 +76,18 @@ Schlüssel/Wert je Verein), `maps` mit `map_images`, `map_boundary_points`,
 sich ändern kann). Punkte/Pylonen liegen als einzelne Zeilen mit Index vor — keine Arrays/JSON.
 
 **Seed:** Beim ersten Start mit leerer DB wird ein Verein samt Admin angelegt
-(`SEED_EMAIL`/`SEED_PASSWORD`, Default `admin@kartslalom.local` / `kart2026`) inkl.
-Reglement-Defaults und Standard-Fläche. Bestehende **Browser-Daten der alten Version werden
-beim ersten Login automatisch migriert** (POST `/api/import`) und danach aus dem localStorage
+(`SEED_EMAIL`, Default `admin@kartslalom.local`). Das Passwort kommt aus `SEED_PASSWORD`;
+ist es nicht gesetzt, wird ein **zufälliges Passwort erzeugt und einmalig in den Logs
+ausgegeben** (`docker compose logs app | grep Passwort`) — es gibt kein bekanntes
+Default-Passwort. Bestehende **Browser-Daten der alten Version werden beim ersten Login
+eines Admins automatisch migriert** (POST `/api/import`) und danach aus dem localStorage
 entfernt — es geht nichts verloren.
+
+**Sicherheit:** `JWT_SECRET` (≥32 Zeichen) und in Produktion `DATABASE_URL`/`POSTGRES_PASSWORD`
+sind Pflicht – ohne sie startet der Server bzw. Compose nicht (kein committetes Default).
+Vereinsweite/destruktive Aktionen (Regeln ändern, Reglement-PDF ersetzen, Strecken/Flächen
+löschen, Import) sind auf **Admins** beschränkt; Login ist rate-limitiert; helmet setzt
+Sicherheits-Header; Uploads/Importe sind größenbegrenzt.
 
 ## Entwicklung (Web)
 

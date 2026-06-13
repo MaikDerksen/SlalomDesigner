@@ -5,6 +5,8 @@ dist/
 .DS_Store
 android/
 ios/
+.env
+deploy/.env
 
 scripts/templates.json
 scripts/templates_overview.png

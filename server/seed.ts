@@ -1,6 +1,6 @@
 import type pg from "pg";
 import bcrypt from "bcryptjs";
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -72,7 +72,10 @@ export async function seedIfEmpty(): Promise<void> {
   if (rows[0].n > 0) return;
 
   const email = process.env.SEED_EMAIL ?? "admin@kartslalom.local";
-  const password = process.env.SEED_PASSWORD ?? "kart2026";
+  // Kein bekanntes Default-Passwort: ohne SEED_PASSWORD wird ein zufälliges
+  // erzeugt und EINMALIG ausgegeben (muss bei der Einrichtung notiert werden).
+  const provided = process.env.SEED_PASSWORD;
+  const password = provided ?? randomBytes(9).toString("base64url");
   const clubName = process.env.SEED_CLUB ?? "Mein Verein";
 
   await tx(async (c) => {
@@ -89,7 +92,12 @@ export async function seedIfEmpty(): Promise<void> {
     );
     console.log("──────────────────────────────────────────────");
     console.log(`Seed: Verein „${clubName}" angelegt`);
-    console.log(`  Login:           ${email} / ${password}`);
+    console.log(`  Login:           ${email}`);
+    if (provided) {
+      console.log(`  Passwort:        (aus SEED_PASSWORD)`);
+    } else {
+      console.log(`  Passwort:        ${password}   ← NUR JETZT sichtbar, bitte notieren!`);
+    }
     console.log(`  Einladungscode:  ${club.rows[0].invite_code}`);
     console.log("──────────────────────────────────────────────");
   });

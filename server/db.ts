@@ -5,8 +5,22 @@ import { dirname, join } from "node:path";
 
 const { Pool } = pg;
 
+// In Produktion ist DATABASE_URL Pflicht (kein committetes Fallback-Passwort);
+// im Dev-Modus ist der lokale Container-Default erlaubt.
+function connectionString(): string {
+  const url = process.env.DATABASE_URL;
+  if (url) return url;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("DATABASE_URL muss in Produktion gesetzt sein.");
+  }
+  return "postgres://ksp:ksp@localhost:5433/ksp";
+}
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL ?? "postgres://ksp:ksp@localhost:5433/ksp",
+  connectionString: connectionString(),
+  // Eine einzelne pathologische Anfrage darf keine Verbindung dauerhaft halten.
+  statement_timeout: 20_000,
+  idle_in_transaction_session_timeout: 20_000,
 });
 
 /** Schema anlegen (idempotent), mit Warte-Schleife bis die DB erreichbar ist. */

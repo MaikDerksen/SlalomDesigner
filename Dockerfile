@@ -17,6 +17,9 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY server ./server
 COPY src ./src
 COPY --from=build /app/dist ./dist
+# Unprivilegiert laufen: der node-User (uid 1000) ist im Image vorhanden
+RUN chown -R node:node /app
+USER node
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD wget -qO- http://localhost:3001/api/health || exit 1

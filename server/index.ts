@@ -1,5 +1,7 @@
 import express from "express";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -16,11 +18,53 @@ async function main() {
   await backfillDocuments();
 
   const app = express();
-  app.use(express.json({ limit: "25mb" })); // Screenshot-DataURLs
+  // Hinter Reverse-Proxy/Docker: echte Client-IP für Rate-Limiting
+  app.set("trust proxy", 1);
+
+  // Sicherheits-Header (CSP erlaubt Inline-Styles, data:/blob:-Bilder der App)
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:", "blob:"],
+          connectSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'self'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
+
+  // Moderates JSON-Limit global; große Payloads (Screenshot-DataURLs, Import,
+  // Reglement-PDF) bekommen ein höheres Limit gezielt pro Route.
+  app.use(express.json({ limit: "1mb" }));
+  const bigJson = express.json({ limit: "16mb" });
   app.use(cookieParser());
 
   // Health-Endpoint für Docker/Compose-Healthchecks (ohne Auth)
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+  // Brute-Force-/DoS-Schutz auf den Auth-Endpunkten
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => `${req.ip}:${String(req.body?.email ?? "").toLowerCase()}`,
+    message: { error: "Zu viele Versuche – bitte später erneut." },
+  });
+  app.use("/api/auth/login", authLimiter, bigJson);
+  app.use("/api/auth/register", authLimiter, bigJson);
+
+  // Routen mit großen Payloads
+  app.use("/api/maps", bigJson); // Screenshot-DataURL
+  app.use("/api/wiki/pdf", bigJson); // Reglement-PDF
+  app.use("/api/import", bigJson); // einmalige localStorage-Migration
 
   app.use("/api/auth", authRouter());
   app.use("/api", requireAuth, dataRouter());

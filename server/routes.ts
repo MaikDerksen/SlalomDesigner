@@ -1,7 +1,13 @@
 import express, { type Router } from "express";
 import type pg from "pg";
 import { pool, tx } from "./db";
-import { HttpError } from "./auth";
+import { HttpError, requireAdmin } from "./auth";
+
+/** Obergrenzen gegen Speicher-/DB-Erschöpfung (DoS). */
+const LIMITS = { maps: 200, tracks: 500, obstacles: 400, pylons: 64, points: 4000, zones: 50 };
+function cap<T>(arr: T[] | undefined, max: number): T[] {
+  return Array.isArray(arr) ? arr.slice(0, max) : [];
+}
 
 /** Geteilte Datentypen mit dem Frontend (Form der JSON-Payloads). */
 interface PylonDto {
@@ -183,20 +189,23 @@ async function writeMapData(c: pg.PoolClient, mapId: string, p: MapPayload) {
   await c.query("DELETE FROM map_blocked_zones WHERE map_id = $1", [mapId]);
   await c.query("DELETE FROM map_images WHERE map_id = $1", [mapId]);
 
-  for (let i = 0; i < (p.boundary?.length ?? 0); i++) {
-    const pt = p.boundary![i];
+  const boundary = cap(p.boundary, LIMITS.points);
+  for (let i = 0; i < boundary.length; i++) {
+    const pt = boundary[i];
     await c.query(
       "INSERT INTO map_boundary_points (map_id, point_index, x_m, y_m) VALUES ($1, $2, $3, $4)",
       [mapId, i, pt.x, pt.y],
     );
   }
-  for (let z = 0; z < (p.blocked?.length ?? 0); z++) {
+  const blocked = cap(p.blocked, LIMITS.zones);
+  for (let z = 0; z < blocked.length; z++) {
     const zone = await c.query(
       "INSERT INTO map_blocked_zones (map_id, zone_index) VALUES ($1, $2) RETURNING id",
       [mapId, z],
     );
-    for (let i = 0; i < p.blocked![z].length; i++) {
-      const pt = p.blocked![z][i];
+    const zpts = cap(blocked[z], LIMITS.points);
+    for (let i = 0; i < zpts.length; i++) {
+      const pt = zpts[i];
       await c.query(
         "INSERT INTO map_blocked_zone_points (zone_id, point_index, x_m, y_m) VALUES ($1, $2, $3, $4)",
         [zone.rows[0].id, i, pt.x, pt.y],
@@ -222,8 +231,9 @@ async function replaceObstacles(
   const customIds = new Set(
     (await c.query("SELECT id FROM custom_obstacles WHERE club_id = $1", [clubId])).rows.map((r) => r.id),
   );
-  for (let i = 0; i < obstacles.length; i++) {
-    const o = obstacles[i];
+  const capped = cap(obstacles, LIMITS.obstacles);
+  for (let i = 0; i < capped.length; i++) {
+    const o = capped[i];
     // template_id immer setzen: bleibt nach ON DELETE SET NULL der
     // Custom-Referenz gültig (CHECK-Constraint) und erhält die Zuordnung
     const mapped = customIdMap?.get(o.templateId) ?? o.templateId;
@@ -234,8 +244,9 @@ async function replaceObstacles(
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [trackId, i, templateId, customId, o.name ?? "Aufgabe", o.x, o.y, o.rotation ?? 0],
     );
-    for (let k = 0; k < (o.pylons?.length ?? 0); k++) {
-      const p = o.pylons[k];
+    const opylons = cap(o.pylons, LIMITS.pylons);
+    for (let k = 0; k < opylons.length; k++) {
+      const p = opylons[k];
       await c.query(
         `INSERT INTO track_obstacle_pylons (obstacle_id, pylon_index, x_m, y_m, lying, angle_deg)
          VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -280,7 +291,7 @@ export function dataRouter(): Router {
     res.json(Object.fromEntries(rows.map((x) => [x.rule_key, x.value])));
   });
 
-  r.put("/rules", async (req, res) => {
+  r.put("/rules", requireAdmin, async (req, res) => {
     const rules = req.body ?? {};
     await tx(async (c) => {
       await c.query("DELETE FROM club_rules WHERE club_id = $1", [req.auth!.clubId]);
@@ -348,7 +359,7 @@ export function dataRouter(): Router {
     res.json(await readMapDetail(pool, req.params.id, req.auth!.clubId));
   });
 
-  r.delete("/maps/:id", async (req, res) => {
+  r.delete("/maps/:id", requireAdmin, async (req, res) => {
     await pool.query("DELETE FROM maps WHERE id = $1 AND club_id = $2", [req.params.id, req.auth!.clubId]);
     res.status(204).end();
   });
@@ -539,7 +550,7 @@ export function dataRouter(): Router {
     res.json({ id: trackId });
   });
 
-  r.delete("/tracks/:id", async (req, res) => {
+  r.delete("/tracks/:id", requireAdmin, async (req, res) => {
     await pool.query("DELETE FROM tracks WHERE id = $1 AND club_id = $2 AND NOT is_draft", [
       req.params.id,
       req.auth!.clubId,
@@ -612,6 +623,10 @@ export function dataRouter(): Router {
     if (!rows.length) throw new HttpError(404, "Kein Reglement hinterlegt");
     const buf = Buffer.from(rows[0].data_base64, "base64");
     res.setHeader("Content-Type", "application/pdf");
+    // Härtung gegen Polyglot/aktive Inhalte: kein MIME-Sniffing, sandbox, kein Framing
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Security-Policy", "default-src 'none'; object-src 'self'; sandbox");
+    res.setHeader("X-Frame-Options", "DENY");
     res.setHeader(
       "Content-Disposition",
       `${req.query.download ? "attachment" : "inline"}; filename="${rows[0].filename.replace(/[^\w.\- ]/g, "")}"`,
@@ -619,7 +634,7 @@ export function dataRouter(): Router {
     res.send(buf);
   });
 
-  r.put("/wiki/pdf", async (req, res) => {
+  r.put("/wiki/pdf", requireAdmin, async (req, res) => {
     const { filename, data } = req.body ?? {};
     if (!data || typeof data !== "string") throw new HttpError(400, "PDF-Daten fehlen");
     // Plausibilitätsprüfung: Base64 eines PDFs beginnt mit "JVBERi" (%PDF)
@@ -637,7 +652,7 @@ export function dataRouter(): Router {
   });
 
   /* Einmalige Übernahme der bisherigen Browser-Daten (localStorage-Migration) */
-  r.post("/import", async (req, res) => {
+  r.post("/import", requireAdmin, async (req, res) => {
     const { rules, maps, tracks, customTemplates } = req.body ?? {};
     const counts = { maps: 0, tracks: 0, customTemplates: 0, rules: 0 };
 
@@ -658,14 +673,15 @@ export function dataRouter(): Router {
       }
 
       const customIdMap = new Map<string, string>();
-      for (const t of customTemplates ?? []) {
+      for (const t of cap(customTemplates, LIMITS.maps)) {
         if (!t?.name || !Array.isArray(t.pylons)) continue;
         const row = await c.query(
           "INSERT INTO custom_obstacles (club_id, name, created_by) VALUES ($1, $2, $3) RETURNING id",
           [clubId, t.name, userId],
         );
-        for (let i = 0; i < t.pylons.length; i++) {
-          const p = t.pylons[i];
+        const cpylons = cap(t.pylons, LIMITS.pylons);
+        for (let i = 0; i < cpylons.length; i++) {
+          const p = cpylons[i];
           await c.query(
             `INSERT INTO custom_obstacle_pylons (custom_obstacle_id, pylon_index, x_m, y_m, lying, angle_deg)
              VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -677,7 +693,7 @@ export function dataRouter(): Router {
       }
 
       const mapIdMap = new Map<string, string>();
-      for (const m of maps ?? []) {
+      for (const m of cap(maps, LIMITS.maps)) {
         if (!m?.config) continue;
         const newId = await insertMap(c, clubId, userId, {
           name: m.name ?? m.config.name ?? "Map",
@@ -692,7 +708,7 @@ export function dataRouter(): Router {
         counts.maps++;
       }
 
-      for (const t of tracks ?? []) {
+      for (const t of cap(tracks, LIMITS.tracks)) {
         if (!t?.map) continue;
         let mapId = t.map.mapId ? mapIdMap.get(t.map.mapId) : undefined;
         if (!mapId) {

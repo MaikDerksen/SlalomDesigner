@@ -16,16 +16,19 @@ services:
       timeout: 3s
       retries: 15
 
-  # Produktion: API + ausgeliefertes Frontend in einem Container
+  # Lokales Compose (Entwicklung/Single-Host). Produktion auf dem NAS:
+  # siehe deploy/docker-compose.nas.yml. JWT_SECRET ist Pflicht (kein Platzhalter).
   app:
     build: .
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://ksp:ksp@db:5432/ksp
-      JWT_SECRET: ${JWT_SECRET:-bitte-in-produktion-aendern}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET setzen, z. B. via `openssl rand -hex 32`}
       PORT: "3001"
     ports:
       - "3001:3001"
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       db:
         condition: service_healthy

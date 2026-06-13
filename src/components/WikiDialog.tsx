@@ -23,6 +23,7 @@ export function WikiDialog() {
   const setDialog = useStore((s) => s.setDialog);
   const rules = useStore((s) => s.rules);
   const showToast = useStore((s) => s.showToast);
+  const isAdmin = useStore((s) => s.user?.role === "admin");
   const [meta, setMeta] = useState<WikiMeta | null | "laden">("laden");
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -101,17 +102,21 @@ export function WikiDialog() {
               </a>
             </>
           )}
-          <button onClick={() => fileRef.current?.click()} disabled={busy}>
-            <Icon name="share" />
-            {busy ? "Lädt…" : meta && meta !== "laden" ? "Ersetzen" : "Hochladen"}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/pdf"
-            hidden
-            onChange={(e) => upload(e.target.files?.[0] ?? undefined)}
-          />
+          {isAdmin && (
+            <>
+              <button onClick={() => fileRef.current?.click()} disabled={busy}>
+                <Icon name="share" />
+                {busy ? "Lädt…" : meta && meta !== "laden" ? "Ersetzen" : "Hochladen"}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/pdf"
+                hidden
+                onChange={(e) => upload(e.target.files?.[0] ?? undefined)}
+              />
+            </>
+          )}
         </div>
       </div>
       <a className="wiki-source" href={ADAC_URL} target="_blank" rel="noreferrer">
