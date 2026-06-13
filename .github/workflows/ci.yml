@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main, opus-4-8]
+  pull_request:
+
+# Laufende Runs auf demselben Ref abbrechen (spart Minuten)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Typecheck, Build & Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # entspricht Dockerfile (node:20-alpine)
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # tsconfig include ist ["src"] -> typecheckt Frontend + geteilte Logik.
+      # server/ läuft via tsx und wird hier NICHT typgecheckt.
+      - name: Typecheck
+        run: npx tsc -b
+
+      - name: Unit-Tests (Vitest)
+        run: npm test
+
+      - name: Build (Vite)
+        run: npm run build
+
+  docker:
+    name: Docker-Build (Sanity)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (kein Push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: slalom-designer:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -124,8 +124,33 @@ docker compose pull && docker compose up -d   # Update auf neue Version
 
 **Wichtigstes Volume:** `slalom_dbdata` (PostgreSQL) – enthält *alle* Daten (Vereine, Nutzer,
 Strecken, Maps inkl. Screenshots, Reglement-PDFs). Dieses Volume sichern = vollständiges Backup;
-der App-Container selbst ist zustandslos. Details und Backup-Beispiel in
-[deploy/docker-compose.nas.yml](deploy/docker-compose.nas.yml).
+der App-Container selbst ist zustandslos.
+
+### Backup & Restore
+
+Bequeme Skripte sichern/restaurieren die Datenbank über den laufenden Compose-Stack (pg_dump
+läuft im Container, der Dump wird per `docker cp` binärsicher kopiert – funktioniert auch ohne
+veröffentlichten DB-Port). Aus dem Verzeichnis mit der `docker-compose.yml` ausführen:
+
+```bash
+# Linux / NAS / WSL
+bash scripts/db-backup.sh                       # -> ./backups/slalom-<zeitstempel>.dump
+bash scripts/db-restore.sh backups/slalom-….dump
+
+# Windows (PowerShell)
+./scripts/db-backup.ps1
+./scripts/db-restore.ps1 backups\slalom-….dump
+```
+Auf dem NAS mit `COMPOSE_FILE` auf die dortige Compose-Datei zeigen. Backups regelmäßig
+(z. B. per Cron / Aufgabenplanung) laufen lassen und vom NAS wegkopieren.
+
+## Tests & CI
+
+Pure Logik (Geometrie, Validierung, Generator, Routing, Vorlagen) ist mit **Vitest** abgedeckt
+(`npm test`, ~97 Tests) – genau die Module, in denen ein Bug stillschweigend illegale Kurse
+erzeugen würde. GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) läuft bei
+Push/PR: `tsc -b` (Typecheck), Vitest, Vite-Build und ein Docker-Build zur Absicherung.
+Bewusst *kein* Browser-/E2E- oder DB-Integrationstest – der Aufwand lohnt für ein Vereins-Tool nicht.
 
 ## iOS / Android (Capacitor)
 
