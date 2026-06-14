@@ -21,10 +21,15 @@ async function main() {
   // Hinter Reverse-Proxy/Docker: echte Client-IP für Rate-Limiting
   app.set("trust proxy", 1);
 
-  // Sicherheits-Header (CSP erlaubt Inline-Styles, data:/blob:-Bilder der App)
+  // Sicherheits-Header (CSP erlaubt Inline-Styles, data:/blob:-Bilder der App).
+  // WICHTIG: KEIN upgrade-insecure-requests – die App läuft auf dem NAS über
+  // http://<nas-ip>:3001 (LAN, kein TLS). Würde der Browser Subressourcen auf
+  // https hochstufen, schlügen JS/CSS fehl → Whitescreen. HSTS aus demselben
+  // Grund deaktiviert (greift nur über HTTPS, hier unnötig).
   app.use(
     helmet({
       contentSecurityPolicy: {
+        useDefaults: true,
         directives: {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'"],
@@ -34,8 +39,10 @@ async function main() {
           objectSrc: ["'none'"],
           frameAncestors: ["'none'"],
           baseUri: ["'self'"],
+          upgradeInsecureRequests: null,
         },
       },
+      strictTransportSecurity: false,
       crossOriginEmbedderPolicy: false,
     }),
   );

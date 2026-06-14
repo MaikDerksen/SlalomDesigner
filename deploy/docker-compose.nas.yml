@@ -35,8 +35,10 @@ services:
 
   app:
     # Multi-Platform-Image (amd64, arm64, armv7) – das NAS zieht
-    # automatisch die passende Architektur.
-    image: maik05/slalom-designer:latest
+    # automatisch die passende Architektur. Feste Version (reproduzierbar);
+    # zum Aktualisieren Tag erhöhen + `docker compose pull && up -d`.
+    # Diese Datei braucht KEINEN Quellcode/Dockerfile – nur dieses Image.
+    image: maik05/slalom-designer:1.1.0
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://ksp:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD in .env setzen}@db:5432/ksp
