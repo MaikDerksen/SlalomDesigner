@@ -71,12 +71,14 @@ export async function seedIfEmpty(): Promise<void> {
   const { rows } = await pool.query("SELECT count(*)::int AS n FROM clubs");
   if (rows[0].n > 0) return;
 
-  const email = process.env.SEED_EMAIL ?? "admin@kartslalom.local";
+  // Leere Strings (z. B. nicht gesetzte ${VAR:-} aus Compose) als "nicht gesetzt"
+  // behandeln, damit Defaults greifen und kein leeres Passwort entsteht.
+  const email = process.env.SEED_EMAIL || "admin@kartslalom.local";
   // Kein bekanntes Default-Passwort: ohne SEED_PASSWORD wird ein zufälliges
   // erzeugt und EINMALIG ausgegeben (muss bei der Einrichtung notiert werden).
-  const provided = process.env.SEED_PASSWORD;
+  const provided = process.env.SEED_PASSWORD || undefined;
   const password = provided ?? randomBytes(9).toString("base64url");
-  const clubName = process.env.SEED_CLUB ?? "Mein Verein";
+  const clubName = process.env.SEED_CLUB || "Mein Verein";
 
   await tx(async (c) => {
     const club = await c.query(

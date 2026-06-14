@@ -45,10 +45,12 @@ services:
       # ≥32 Zeichen, zufällig. Pflicht – der Server startet sonst nicht.
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET in .env setzen (openssl rand -hex 32)}
       PORT: "3001"
-      # Optional, nur fuer den allerersten Start (leere DB):
-      # SEED_EMAIL: admin@meinverein.de
-      # SEED_PASSWORD: sicheres-passwort   # sonst wird eines erzeugt + 1x geloggt
-      # SEED_CLUB: Mein Verein e.V.
+      # Optional, nur beim allerersten Start (leere DB) wirksam – aus der .env.
+      # Leer lassen ist ok: dann admin@kartslalom.local + ein zufälliges, einmalig
+      # geloggtes Passwort (docker compose logs app | grep Passwort).
+      SEED_EMAIL: ${SEED_EMAIL:-}
+      SEED_PASSWORD: ${SEED_PASSWORD:-}
+      SEED_CLUB: ${SEED_CLUB:-}
     ports:
       - "3001:3001"                   # links anpassen, falls 3001 belegt ist
     security_opt:

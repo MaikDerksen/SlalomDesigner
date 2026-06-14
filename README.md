@@ -111,15 +111,28 @@ Das Image wird als **privates** Repo `maik05/slalom-designer` auf Docker Hub gep
 (Multi-Stage-Build, Healthcheck auf `/api/health`) und ist **multi-platform**
 (linux/amd64, linux/arm64, linux/arm/v7) – läuft also auch auf ARM-NAS.
 
+> **Zwei Compose-Dateien – nicht verwechseln:**
+> - **`docker-compose.yml`** (Projektwurzel) nutzt `build: .` → baut das Image aus dem
+>   Quellcode. Funktioniert **nur im Repo** (Dockerfile + Quellen vorhanden), für lokale
+>   Entwicklung. Auf dem NAS (kein Quellcode) schlägt das fehl → war die Whitescreen-Falle.
+> - **`deploy/docker-compose.nas.yml`** nutzt `image: maik05/slalom-designer:1.1.0` → lädt das
+>   fertige Image aus der Registry. **Das ist die NAS-Datei** und überall per Copy-Paste
+>   lauffähig (nur Docker + `docker login` + eine `.env` nötig, kein Quellcode/Build).
+>
+> In Compose braucht ein Service `image:` **oder** `build:`. `build:` setzt den Build-Kontext
+> voraus, `image:` nicht – deshalb ist für den NAS die image-basierte Datei richtig.
+
 ```bash
 # Auf der Entwickler-Maschine: neue Version für alle Plattformen bauen & pushen
-bash scripts/build_multiarch.sh 1.0.1
+bash scripts/build_multiarch.sh 1.1.0     # pusht :1.1.0 und :latest
 
 # Auf dem NAS (einmalig anmelden, da privates Repo)
 docker login
-# deploy/docker-compose.nas.yml als docker-compose.yml ablegen, JWT_SECRET setzen
-docker compose up -d          # Start
-docker compose pull && docker compose up -d   # Update auf neue Version
+# deploy/docker-compose.nas.yml als docker-compose.yml ablegen,
+# deploy/.env.example als .env daneben legen und JWT_SECRET + POSTGRES_PASSWORD setzen
+docker compose up -d          # Start (zieht das gepinnte Image automatisch)
+# Update auf eine neue Version: image-Tag in der Compose erhöhen, dann:
+docker compose pull && docker compose up -d
 ```
 
 **Wichtigstes Volume:** `slalom_dbdata` (PostgreSQL) – enthält *alle* Daten (Vereine, Nutzer,
