@@ -21,7 +21,28 @@ export const pool = new Pool({
   // Eine einzelne pathologische Anfrage darf keine Verbindung dauerhaft halten.
   statement_timeout: 20_000,
   idle_in_transaction_session_timeout: 20_000,
+  // Verbindungsaufbau begrenzen, damit der Health-Check bei toter DB schnell
+  // mit Fehler antwortet statt zu hängen.
+  connectionTimeoutMillis: 5_000,
 });
+
+// WICHTIG: Stirbt eine Idle-Verbindung (DB neu gestartet / Netzwerk weg), feuert
+// der Pool ein 'error'-Event. Ohne Listener beendet Node den Prozess. Mit Listener
+// bleibt die App am Leben, liefert solange 503 und erholt sich, sobald die DB
+// wieder da ist – statt in eine Crash-Schleife zu laufen.
+pool.on("error", (err) => {
+  console.error("Postgres-Pool-Fehler (Idle-Client):", err.message);
+});
+
+/** Schneller Liveness-Check der Datenbank (für /api/health). */
+export async function dbHealthy(): Promise<boolean> {
+  try {
+    await pool.query("SELECT 1");
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Schema anlegen (idempotent), mit Warte-Schleife bis die DB erreichbar ist. */
 export async function migrate(): Promise<void> {

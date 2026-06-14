@@ -5,7 +5,7 @@ import rateLimit from "express-rate-limit";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { migrate } from "./db";
+import { migrate, dbHealthy } from "./db";
 import { authRouter, requireAuth, HttpError } from "./auth";
 import { dataRouter } from "./routes";
 import { seedIfEmpty, backfillDocuments } from "./seed";
@@ -53,8 +53,12 @@ async function main() {
   const bigJson = express.json({ limit: "16mb" });
   app.use(cookieParser());
 
-  // Health-Endpoint für Docker/Compose-Healthchecks (ohne Auth)
-  app.get("/api/health", (_req, res) => res.json({ ok: true }));
+  // Health-Endpoint für Docker/Compose-Healthchecks (ohne Auth): prüft auch die
+  // DB-Verbindung → bei nicht erreichbarer DB 503 ⇒ Container wird "unhealthy".
+  app.get("/api/health", async (_req, res) => {
+    if (await dbHealthy()) return res.json({ ok: true, db: "up" });
+    res.status(503).json({ ok: false, db: "down" });
+  });
 
   // Brute-Force-/DoS-Schutz auf den Auth-Endpunkten
   const authLimiter = rateLimit({

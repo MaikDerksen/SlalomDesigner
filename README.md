@@ -115,7 +115,7 @@ Das Image wird als **privates** Repo `maik05/slalom-designer` auf Docker Hub gep
 > - **`docker-compose.yml`** (Projektwurzel) nutzt `build: .` → baut das Image aus dem
 >   Quellcode. Funktioniert **nur im Repo** (Dockerfile + Quellen vorhanden), für lokale
 >   Entwicklung. Auf dem NAS (kein Quellcode) schlägt das fehl → war die Whitescreen-Falle.
-> - **`deploy/docker-compose.nas.yml`** nutzt `image: maik05/slalom-designer:1.1.0` → lädt das
+> - **`deploy/docker-compose.nas.yml`** nutzt `image: maik05/slalom-designer:1.1.1` → lädt das
 >   fertige Image aus der Registry. **Das ist die NAS-Datei** und überall per Copy-Paste
 >   lauffähig (nur Docker + `docker login` + eine `.env` nötig, kein Quellcode/Build).
 >
@@ -124,7 +124,7 @@ Das Image wird als **privates** Repo `maik05/slalom-designer` auf Docker Hub gep
 
 ```bash
 # Auf der Entwickler-Maschine: neue Version für alle Plattformen bauen & pushen
-bash scripts/build_multiarch.sh 1.1.0     # pusht :1.1.0 und :latest
+bash scripts/build_multiarch.sh 1.1.1     # pusht :1.1.1 und :latest
 
 # Auf dem NAS (einmalig anmelden, da privates Repo)
 docker login
