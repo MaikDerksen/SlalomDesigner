@@ -256,7 +256,7 @@ export function CanvasEditor() {
   }, [map.width, map.height]);
 
   return (
-    <div className="canvas-wrap" ref={wrapRef}>
+    <div className="canvas-wrap" ref={wrapRef} data-tour="canvas">
       <svg
         ref={svgRef}
         className={`canvas ${drawingRoute ? "drawing" : ""}`}

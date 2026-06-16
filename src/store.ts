@@ -133,6 +133,16 @@ interface AppState {
   theme: "light" | "dark";
   toggleTheme: () => void;
 
+  /** Einführungs-Tour aktiv? */
+  tourActive: boolean;
+  /** Index des aktuellen Tour-Schritts. */
+  tourStep: number;
+  startTour: () => void;
+  nextStep: () => void;
+  prevStep: () => void;
+  /** Tour beenden und (falls noch nicht geschehen) serverseitig als gesehen markieren. */
+  completeTour: () => void;
+
   showToast: (msg: string) => void;
 }
 
@@ -254,6 +264,8 @@ export const useStore = create<AppState>((set, get) => {
     designerEditId: null,
     designerBaseId: null,
     theme: startTheme,
+    tourActive: false,
+    tourStep: 0,
 
     toggleTheme: () => {
       const theme = get().theme === "dark" ? "light" : "dark";
@@ -665,6 +677,21 @@ export const useStore = create<AppState>((set, get) => {
         .del(`/custom-obstacles/${id}`)
         .then(() => set({ customTemplates: get().customTemplates.filter((t) => t.id !== id) }))
         .catch((e) => get().showToast(errMsg(e)));
+    },
+
+    startTour: () => set({ tourActive: true, tourStep: 0 }),
+    nextStep: () => set({ tourStep: get().tourStep + 1 }),
+    prevStep: () => set({ tourStep: Math.max(0, get().tourStep - 1) }),
+    completeTour: () => {
+      set({ tourActive: false, tourStep: 0 });
+      const { user } = get();
+      // Nur einmal serverseitig markieren; beim Wiederholen (Profilmenü) entfällt das.
+      if (user && !user.onboarded) {
+        set({ user: { ...user, onboarded: true } });
+        api.post("/onboarding/complete").catch(() => {
+          // Unkritisch: schlägt es fehl, zeigt der Server-Flag beim nächsten Login den Stand.
+        });
+      }
     },
 
     showToast: (msg) => {

@@ -26,6 +26,7 @@ export function Toolbar() {
   const clearRoute = useStore((s) => s.clearRoute);
   const theme = useStore((s) => s.theme);
   const toggleTheme = useStore((s) => s.toggleTheme);
+  const startTour = useStore((s) => s.startTour);
   const [sharing, setSharing] = useState(false);
   const [openMenu, setOpenMenu] = useState<MenuId>(null);
 
@@ -63,14 +64,14 @@ export function Toolbar() {
         </div>
       </div>
       <div className="toolbar-actions">
-        <button onClick={() => setDialog("generator")} className="primary">
+        <button onClick={() => setDialog("generator")} className="primary" data-tour="generate">
           <Icon name="zap" />
           Zufall
         </button>
 
         {/* Route */}
         <div className="menu-wrap" onPointerDown={(e) => e.stopPropagation()}>
-          <button className={openMenu === "route" || drawingRoute ? "menu-open" : ""} onClick={() => toggleMenu("route")}>
+          <button data-tour="route" className={openMenu === "route" || drawingRoute ? "menu-open" : ""} onClick={() => toggleMenu("route")}>
             <Icon name="route" />
             Route
             <span className="chevron">⌄</span>
@@ -115,7 +116,7 @@ export function Toolbar() {
 
         {/* Edit – bleibt offen für mehrfaches Undo/Redo */}
         <div className="menu-wrap" onPointerDown={(e) => e.stopPropagation()}>
-          <button className={openMenu === "edit" ? "menu-open" : ""} onClick={() => toggleMenu("edit")}>
+          <button data-tour="edit" className={openMenu === "edit" ? "menu-open" : ""} onClick={() => toggleMenu("edit")}>
             <Icon name="pencil" />
             Edit
             <span className="chevron">⌄</span>
@@ -150,7 +151,7 @@ export function Toolbar() {
 
         {/* Maps */}
         <div className="menu-wrap" onPointerDown={(e) => e.stopPropagation()}>
-          <button className={openMenu === "maps" ? "menu-open" : ""} onClick={() => toggleMenu("maps")}>
+          <button data-tour="maps" className={openMenu === "maps" ? "menu-open" : ""} onClick={() => toggleMenu("maps")}>
             <Icon name="map" />
             Maps
             <span className="chevron">⌄</span>
@@ -195,7 +196,7 @@ export function Toolbar() {
           Ansicht
         </button>
 
-        <button onClick={onShare} disabled={sharing} className="accent">
+        <button onClick={onShare} disabled={sharing} className="accent" data-tour="share">
           <Icon name="share" />
           {sharing ? "…" : "Senden"}
         </button>
@@ -203,7 +204,7 @@ export function Toolbar() {
         {/* User */}
         {user && (
           <div className="menu-wrap" onPointerDown={(e) => e.stopPropagation()}>
-            <button className={openMenu === "user" ? "menu-open" : ""} onClick={() => toggleMenu("user")} title={user.email}>
+            <button data-tour="user" className={openMenu === "user" ? "menu-open" : ""} onClick={() => toggleMenu("user")} title={user.email}>
               <Icon name="user" />
               {user.displayName}
               <span className="chevron">⌄</span>
@@ -222,6 +223,15 @@ export function Toolbar() {
                 >
                   <Icon name="settings" />
                   Settings
+                </button>
+                <button
+                  onClick={() => {
+                    startTour();
+                    setOpenMenu(null);
+                  }}
+                >
+                  <Icon name="help" />
+                  Einführung
                 </button>
                 <button onClick={toggleTheme}>
                   <Icon name={theme === "dark" ? "sun" : "moon"} />

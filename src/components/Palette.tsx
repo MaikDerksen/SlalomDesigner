@@ -73,7 +73,7 @@ export function Palette() {
   };
 
   return (
-    <aside className="palette">
+    <aside className="palette" data-tour="palette">
       <div className="palette-head">Hindernisse</div>
       <div className="palette-scroll">
         {TEMPLATES.map((t) => {

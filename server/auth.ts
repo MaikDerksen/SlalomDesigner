@@ -76,7 +76,7 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
 
 async function userResponse(userId: string) {
   const { rows } = await pool.query(
-    `SELECT u.id, u.email, u.display_name, u.role, c.name AS club_name, c.invite_code
+    `SELECT u.id, u.email, u.display_name, u.role, u.onboarded, c.name AS club_name, c.invite_code
      FROM users u JOIN clubs c ON c.id = u.club_id WHERE u.id = $1`,
     [userId],
   );
@@ -86,6 +86,7 @@ async function userResponse(userId: string) {
     email: u.email,
     displayName: u.display_name,
     role: u.role,
+    onboarded: u.onboarded,
     clubName: u.club_name,
     inviteCode: u.invite_code,
   };

@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS users (
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
+-- Einführungs-Tour: einmalig je Nutzer (false = noch nicht gesehen)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarded boolean NOT NULL DEFAULT false;
+
 -- Regel-Parameter je Verein (Schlüssel = Feldname aus dem Reglement-Modell)
 CREATE TABLE IF NOT EXISTS club_rules (
   club_id  uuid NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,

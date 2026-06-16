@@ -8,6 +8,7 @@ import { ObstacleDesigner } from "./components/ObstacleDesigner";
 import { MapWizard } from "./components/MapWizard";
 import { WikiDialog } from "./components/WikiDialog";
 import { LoginScreen } from "./components/LoginScreen";
+import { Onboarding } from "./components/Onboarding";
 import { validate } from "./validation";
 import { analyzeRoute } from "./routing";
 
@@ -81,7 +82,7 @@ export default function App() {
         <Palette />
       </main>
 
-      <footer className="statusbar">
+      <footer className="statusbar" data-tour="statusbar">
         <span className="status-pill">{obstacles.length} Aufgaben</span>
         <span className="status-pill">
           {map.name} · {fmt(map.width)} × {fmt(map.height)} m
@@ -110,6 +111,8 @@ export default function App() {
       {dialog === "save" && <SaveDialog />}
       {dialog === "designer" && <ObstacleDesigner />}
       {dialog === "wiki" && <WikiDialog />}
+
+      <Onboarding />
 
       {toast && <div className="toast">{toast}</div>}
     </div>

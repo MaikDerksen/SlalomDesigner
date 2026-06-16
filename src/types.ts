@@ -58,6 +58,8 @@ export interface AuthUser {
   email: string;
   displayName: string;
   role: "admin" | "member";
+  /** Hat der Nutzer die Einführungs-Tour bereits gesehen? */
+  onboarded: boolean;
   clubName: string;
   inviteCode: string;
 }

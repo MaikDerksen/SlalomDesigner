@@ -282,6 +282,12 @@ async function insertMap(c: pg.PoolClient, clubId: string, userId: string, p: Ma
 export function dataRouter(): Router {
   const r = express.Router();
 
+  /* Einführungs-Tour als gesehen markieren (einmalig je Nutzer) */
+  r.post("/onboarding/complete", async (req, res) => {
+    await pool.query("UPDATE users SET onboarded = true WHERE id = $1", [req.auth!.userId]);
+    res.status(204).end();
+  });
+
   /* Regeln */
   r.get("/rules", async (req, res) => {
     const { rows } = await pool.query(
